@@ -260,7 +260,7 @@ class DownloadContext(object):
     # download thread
     # in bytes
     def _get_free_space(self):
-        s = os.statvfs(self._cache_folder)
+        s = os.statvfs(self.common.root_folder)
         s = s.f_frsize * s.f_bavail
         return s
 
