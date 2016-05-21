@@ -23,7 +23,7 @@ def main(args=None):
         args = sys.argv
 
     args = parse_args(args[1:])
-    log.setup_logger('/tmp/acddl.log')
+    setup_logger('/tmp/acddl.log')
     main_loop = ioloop.IOLoop.instance()
 
     controller = Controller(args.root)
