@@ -32,7 +32,7 @@ class Controller(object):
     def download(self, node_id):
         node = self._common_context.get_node(node_id)
         if node:
-            dtd = DownloadTaskDescriptor(priority, 1, False)
+            dtd = DownloadTaskDescriptor(1, node, False)
             self._download_context.push_queue(dtd)
 
     def update_cache_from(self, acd_paths):
@@ -332,7 +332,7 @@ class UpdateContext(object):
 
     # update thread
     def download_later(self, node):
-        dtd = DownloadTaskDescriptor(priority, 0, True)
+        dtd = DownloadTaskDescriptor(0, node, True)
         self._download_context.push_queue(dtd)
 
 
