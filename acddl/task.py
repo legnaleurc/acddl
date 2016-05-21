@@ -61,7 +61,7 @@ class DownloadThread(threading.Thread):
     def run(self):
         while True:
             with self._context.pop_queue() as td:
-                if td.none:
+                if not td.is_valid():
                     # special value, need stop
                     break
                 self._download(td.node, self._context.root_folder, td.need_mtime)
