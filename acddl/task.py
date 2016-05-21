@@ -257,7 +257,7 @@ class Context(object):
 class TaskDescriptor(object):
 
     def __init__(self, priority, node, need_mtime):
-        self._priority = priority if priority is not None else (-sys.maxsize - 1)
+        self._priority = priority if priority is not None else sys.maxsize
         self._node = node
         self._need_mtime = need_mtime
 
