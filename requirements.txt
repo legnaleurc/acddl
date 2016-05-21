@@ -1,0 +1,2 @@
+acdcli >= 0.3.0a2
+tornado
