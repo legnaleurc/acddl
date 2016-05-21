@@ -32,7 +32,7 @@ class Controller(object):
     def update_cache_from(self, acd_paths):
         children = self._context.get_unified_children(acd_paths)
         mtime = self._context.get_oldest_mtime()
-        children = filter(lambda _: _.modified < mtime, children)
+        children = filter(lambda _: _.modified > mtime, children)
         for child in children:
             self._download_later(child, 0, True)
 
