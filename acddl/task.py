@@ -4,6 +4,7 @@ import hashlib
 import os
 import os.path as op
 import queue
+import sys
 import threading
 
 from acdcli.api import client as ACD
@@ -60,7 +61,7 @@ class DownloadThread(threading.Thread):
     def run(self):
         while True:
             with self._context.pop_queue() as td:
-                if td is None:
+                if td.none:
                     # special value, need stop
                     break
                 self._download(td.node, self._context.root_folder, td.need_mtime)
@@ -152,7 +153,8 @@ class Context(object):
 
     # main thread
     def end_queue(self):
-        self._download_queue.put(None)
+        td = TaskDescriptor(None, None, None)
+        self._download_queue.put(td)
 
     # main thread
     def push_queue(self, td):
@@ -255,7 +257,7 @@ class Context(object):
 class TaskDescriptor(object):
 
     def __init__(self, priority, node, need_mtime):
-        self._priority = priority
+        self._priority = priority if priority is not None else (-sys.maxsize - 1)
         self._node = node
         self._need_mtime = need_mtime
 
@@ -264,6 +266,9 @@ class TaskDescriptor(object):
 
     def __eq__(self, that):
         return self._priority == that._priority
+
+    def is_valid(self):
+        return all(_ is not None for _ in (self._node, self._need_mtime))
 
     @property
     def node(self):
