@@ -5,6 +5,7 @@ import sys
 from tornado import ioloop, web, httpserver
 
 from .log import setup_logger, INFO
+from .task import Controller
 
 
 def parse_args(args):
