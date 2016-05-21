@@ -148,7 +148,9 @@ class UpdateThread(threading.Thread):
                     self._context.download_later(child)
 
     def _sync(self):
+        INFO('acddl') << 'syncing'
         sp.run(['acdcli', 'sync'], stdout=sp.DEVNULL, stderr=sp.DEVNULL)
+        INFO('acddl') << 'synced'
 
 
 # used by all threads
@@ -349,10 +351,14 @@ class DownloadTaskDescriptor(object):
         self._need_mtime = need_mtime
 
     def __lt__(self, that):
+        if self._priority < that._priority:
+            return False
+        if self._priority == that._priority:
+            return self._node.modified > that._node.modified
         return self._priority > that._priority
 
     def __eq__(self, that):
-        return self._priority == that._priority
+        return self._priority == that._priority and self._node.modified == that._node.modified
 
     def is_valid(self):
         return all(_ is not None for _ in (self._node, self._need_mtime))
