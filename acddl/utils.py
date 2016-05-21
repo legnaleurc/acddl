@@ -32,6 +32,7 @@ def main(args=None):
     signal.signal(signal.SIGINT, controller.stop)
 
     application = web.Application([
+        (r'/cache', api.CacheHandler),
         (r'/download', api.DownloadHandler),
     ], controller=controller)
     server = httpserver.HTTPServer(application)

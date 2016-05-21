@@ -27,11 +27,19 @@ class Controller(object):
         main_loop = ioloop.IOLoop.instance()
         main_loop.stop()
 
-    def download(self, node_id, priority, need_mtime):
-        node = self._context.get_node(node_id)
-        if not node:
-            return
+    def update_cache_from(self, acd_paths):
+        children = self._context.get_unified_children(acd_paths)
+        mtime = self._context.get_oldest_mtime()
+        children = filter(lambda _: _.mtime < mtime, children)
+        for child in children:
+            self._download_later(child, 0, True)
 
+    def download(self, node_id):
+        node = self._context.get_node(node_id)
+        if node:
+            self._download_later(node, 1, False)
+
+    def _download_later(self, node, priority, need_mtime):
         td = TaskDescriptor(priority, node, need_mtime)
         self._context.push_queue(td)
 
@@ -167,6 +175,16 @@ class Context(object):
         children = folders + files
         return children
 
+    # main thread
+    def get_unified_children(self, acd_paths):
+        children = []
+        for acd_path in acd_paths:
+            folder = self._acd_db.resolve(acd_path)
+            tmp = self.get_children(folder)
+            children.extend(tmp)
+        children = sorted(children, key=lambda _: _.modified, reverse=True)
+        return children
+
     # worker thread
     def download_node(self, node, local_path):
         hasher = hashing.IncrementalHasher()
@@ -175,19 +193,18 @@ class Context(object):
         ])
         return hasher.get_result()
 
+    # main thread
+    def get_oldest_mtime(self):
+        entries = self._get_cache_entries()
+        full_path, mtime = entries[0]
+        return mtime
+
     # worker thread
     def reserve_space(self, node):
-        entries = self._get_cache_entries()
-
-        while True:
-            free_space = self._get_free_space()
-            required_space = self._get_node_size(node)
-            gb_free_space = free_space / 1024 / 1024 / 1024
-            gb_required_space = required_space / 1024 / 1024 / 1024
-            INFO('acddl') << 'free space: {0} GB, required: {1} GB'.format(gb_free_space, gb_required_space)
-            if free_space > required_space:
-                break
-
+        entries = None
+        while self._need_recycle():
+            if not entries:
+                entries = self._get_cache_entries()
             full_path, mtime = entries.pop(0)
             if op.isdir(full_path):
                 shutil.rmtree(full_path)
@@ -196,6 +213,15 @@ class Context(object):
             INFO('acddl') << 'recycled:' << full_path
 
     # worker thread
+    def _need_recycle(self):
+        free_space = self._get_free_space()
+        required_space = self._get_node_size(node)
+        gb_free_space = free_space / 1024 / 1024 / 1024
+        gb_required_space = required_space / 1024 / 1024 / 1024
+        INFO('acddl') << 'free space: {0} GB, required: {1} GB'.format(gb_free_space, gb_required_space)
+        return free_space <= required_space
+
+    # both thread
     def _get_cache_entries(self):
         entries = os.listdir(self._cache_folder)
         entries = (op.join(self._cache_folder, _) for _ in entries)
