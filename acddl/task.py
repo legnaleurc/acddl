@@ -105,9 +105,10 @@ class DownloadThread(threading.Thread):
         # retry until succeed
         while True:
             try:
-                INFO('acddl') << 'downloading:' << full_path
+                remote_path = self_context.common.get_path(node)
+                INFO('acddl') << 'downloading:' << remote_path
                 local_hash = self._context.download_node(node, local_path)
-                INFO('acddl') << 'downloaded:' << full_path
+                INFO('acddl') << 'downloaded'
             except RequestError as e:
                 ERROR('acddl') << 'download failed:' << str(e)
             except OSError as e:
@@ -175,6 +176,10 @@ class CommonContext(object):
     # main thread
     def get_node(self, node_id):
         return self._acd_db.get_node(node_id)
+
+    # download thread
+    def get_path(self, node):
+        return self._acd_db.first_path(node.id) + node.name
 
     # update thread
     def resolve_path(self, acd_path):
