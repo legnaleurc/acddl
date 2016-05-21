@@ -106,7 +106,7 @@ class DownloadThread(threading.Thread):
         # retry until succeed
         while True:
             try:
-                remote_path = self_context.common.get_path(node)
+                remote_path = self._context.common.get_path(node)
                 INFO('acddl') << 'downloading:' << remote_path
                 local_hash = self._context.download_node(node, local_path)
                 INFO('acddl') << 'downloaded'
