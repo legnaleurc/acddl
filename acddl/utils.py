@@ -4,6 +4,7 @@ import sys
 
 from tornado import ioloop, web, httpserver
 
+from . import api
 from .log import setup_logger, INFO
 from .task import Controller
 
