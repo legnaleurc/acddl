@@ -19,35 +19,24 @@ from .log import ERROR, WARNING, INFO
 class Controller(object):
 
     def __init__(self, cache_folder):
-        self._context = Context(cache_folder)
-        self._download_thread = None
+        self._common_context = CommonContext(cache_folder)
+        self._download_context = DownloadContext(self._common_context)
+        self._update_context = UpdateContext(self._common_context, self._download_context)
 
     def stop(self, signum, frame):
-        self._context.end_queue()
-        if self._download_thread:
-            self._download_thread.join()
+        self._update_context.end_queue()
+        self._download_context.end_queue()
         main_loop = ioloop.IOLoop.instance()
         main_loop.stop()
 
-    def update_cache_from(self, acd_paths):
-        children = self._context.get_unified_children(acd_paths)
-        mtime = self._context.get_oldest_mtime()
-        children = filter(lambda _: _.modified > mtime, children)
-        for child in children:
-            self._download_later(child, 0, True)
-
     def download(self, node_id):
-        node = self._context.get_node(node_id)
+        node = self._common_context.get_node(node_id)
         if node:
-            self._download_later(node, 1, False)
+            dtd = DownloadTaskDescriptor(priority, 1, False)
+            self._download_context.push_queue(dtd)
 
-    def _download_later(self, node, priority, need_mtime):
-        td = TaskDescriptor(priority, node, need_mtime)
-        self._context.push_queue(td)
-
-        if not self._download_thread:
-            self._download_thread = DownloadThread(self._context)
-            self._download_thread.start()
+    def update_cache_from(self, acd_paths):
+        self._update_context.push_queue(acd_paths)
 
 
 class DownloadThread(threading.Thread):
@@ -60,11 +49,11 @@ class DownloadThread(threading.Thread):
     # Override
     def run(self):
         while True:
-            with self._context.pop_queue() as td:
-                if not td.is_valid():
+            with self._context.pop_queue() as dtd:
+                if not dtd.is_valid():
                     # special value, need stop
                     break
-                self._download(td.node, self._context.root_folder, td.need_mtime)
+                self._download(dtd.node, self._context.root_folder, dtd.need_mtime)
 
     def _download(self, node, local_path, need_mtime):
         local_path = local_path if local_path else ''
@@ -90,7 +79,7 @@ class DownloadThread(threading.Thread):
             WARNING('acddl') << 'mkdir failed:' << full_path
             return False
 
-        children = self._context.get_children(node)
+        children = self._context.common.get_children(node)
         for child in children:
             ok = self._download(child, full_path, need_mtime)
             if not ok:
@@ -136,59 +125,105 @@ class DownloadThread(threading.Thread):
         return True
 
 
-# used by both threads
-class Context(object):
+class UpdateThread(threading.Thread):
+
+    def __init__(self, context):
+        super(UpdateThread, self).__init__()
+
+        self._context = context
+
+    # Override
+    def run(self):
+        while True:
+            with self._context.pop_queue() as acd_paths:
+                if acd_paths is None:
+                    # special value, need stop
+                    break
+                children = self._context.get_unified_children(acd_paths)
+                mtime = self._context.get_oldest_mtime()
+                children = filter(lambda _: _.modified > mtime, children)
+                for child in children:
+                    self._context.download_later(child)
+
+
+# used by all threads
+class CommonContext(object):
 
     def __init__(self, cache_folder):
         self._cache_folder = cache_folder
-        auth_folder = op.expanduser('~/.cache/acd_cli')
-        self._acd_client = ACD.ACDClient(auth_folder)
-        self._acd_db = DB.NodeCache(auth_folder)
-        self._download_queue = queue.PriorityQueue()
+        self._auth_folder = op.expanduser('~/.cache/acd_cli')
+        self._acd_db = DB.NodeCache(self._auth_folder)
 
     # thread safe
     @property
     def root_folder(self):
         return self._cache_folder
 
-    # main thread
-    def end_queue(self):
-        td = TaskDescriptor(None, None, None)
-        self._download_queue.put(td)
-
-    # main thread
-    def push_queue(self, td):
-        self._download_queue.put(td)
-
-    # worker thread
-    @contextlib.contextmanager
-    def pop_queue(self):
-        try:
-            yield self._download_queue.get()
-        finally:
-            self._download_queue.task_done()
+    # thread safe
+    @property
+    def auth_folder(self):
+        return self._auth_folder
 
     # main thread
     def get_node(self, node_id):
         return self._acd_db.get_node(node_id)
 
-    # worker thread
+    # all threads
     def get_children(self, node):
         folders, files = self._acd_db.list_children(node.id)
         children = folders + files
         return children
 
-    # main thread
-    def get_unified_children(self, acd_paths):
-        children = []
-        for acd_path in acd_paths:
-            folder = self._acd_db.resolve(acd_path)
-            tmp = self.get_children(folder)
-            children.extend(tmp)
-        children = sorted(children, key=lambda _: _.modified, reverse=True)
-        return children
+    # all threads
+    def get_cache_entries(self):
+        entries = os.listdir(self._cache_folder)
+        entries = (op.join(self._cache_folder, _) for _ in entries)
+        entries = ((_, op.getmtime(_)) for _ in entries)
+        entries = sorted(entries, key=lambda _: _[1])
+        return entries
 
-    # worker thread
+
+# used by download/main thread
+class DownloadContext(object):
+
+    def __init__(self, common_context):
+        self._common_context = common_context
+        auth_folder = self._common_context.auth_folder
+        self._acd_client = ACD.ACDClient(auth_folder)
+        self._queue = queue.PriorityQueue()
+        self._thread = None
+        self._lock = threading.RLock()
+
+    # thread safe
+    @property
+    def common(self):
+        return self._common_context
+
+    # main thread
+    def end_queue(self):
+        td = DownloadTaskDescriptor(None, None, None)
+        self._queue.put(td)
+        if self._thread:
+            self._thread.join()
+
+    # main/update thread
+    def push_queue(self, dtd):
+        self._queue.put(dtd)
+
+        with self._lock:
+            if not self._thread:
+                self._thread = DownloadThread(self)
+                self._thread.start()
+
+    # download thread
+    @contextlib.contextmanager
+    def pop_queue(self):
+        try:
+            yield self._queue.get()
+        finally:
+            self._queue.task_done()
+
+    # download thread
     def download_node(self, node, local_path):
         hasher = hashing.IncrementalHasher()
         self._acd_client.download_file(node.id, node.name, local_path, write_callbacks=[
@@ -196,19 +231,12 @@ class Context(object):
         ])
         return hasher.get_result()
 
-    # main thread
-    def get_oldest_mtime(self):
-        entries = self._get_cache_entries()
-        full_path, mtime = entries[0]
-        # just convert from local TZ, no need to use UTC
-        return dt.datetime.fromtimestamp(mtime)
-
-    # worker thread
+    # download thread
     def reserve_space(self, node):
         entries = None
         while self._need_recycle(node):
             if not entries:
-                entries = self._get_cache_entries()
+                entries = self.common.get_cache_entries()
             full_path, mtime = entries.pop(0)
             if op.isdir(full_path):
                 shutil.rmtree(full_path)
@@ -216,7 +244,7 @@ class Context(object):
                 os.remove(full_path)
             INFO('acddl') << 'recycled:' << full_path
 
-    # worker thread
+    # download thread
     def _need_recycle(self, node):
         free_space = self._get_free_space()
         required_space = self._get_node_size(node)
@@ -225,22 +253,14 @@ class Context(object):
         INFO('acddl') << 'free space: {0} GB, required: {1} GB'.format(gb_free_space, gb_required_space)
         return free_space <= required_space
 
-    # both thread
-    def _get_cache_entries(self):
-        entries = os.listdir(self._cache_folder)
-        entries = (op.join(self._cache_folder, _) for _ in entries)
-        entries = ((_, op.getmtime(_)) for _ in entries)
-        entries = sorted(entries, key=lambda _: _[1])
-        return entries
-
-    # worker thread
+    # download thread
     # in bytes
     def _get_free_space(self):
         s = os.statvfs(self._cache_folder)
         s = s.f_frsize * s.f_bavail
         return s
 
-    # worker thread
+    # download thread
     # in bytes
     def _get_node_size(self, node):
         if not node.is_available:
@@ -249,12 +269,70 @@ class Context(object):
         if not node.is_folder:
             return node.size
 
-        children = self.get_children(node)
+        children = self.common.get_children(node)
         children = (self._get_node_size(_) for _ in children)
         return sum(children)
 
 
-class TaskDescriptor(object):
+# used by update/main thread
+class UpdateContext(object):
+
+    def __init__(self, common_context, download_context):
+        self._common_context = common_context
+        self._download_context = download_context
+        self._queue = queue.Queue()
+        self._thread = None
+
+    @property
+    def common(self):
+        return self._common_context
+
+    # main thread
+    def end_queue(self):
+        self._queue.put(None)
+        if self._thread:
+            self._thread.join()
+
+    # main thread
+    def push_queue(self, acd_paths):
+        self._queue.put(acd_paths)
+
+        if not self._thread:
+            self._thread = UpdateThread(self)
+            self._thread.start()
+
+    # update thread
+    @contextlib.contextmanager
+    def pop_queue(self):
+        try:
+            yield self._queue.get()
+        finally:
+            self._queue.task_done()
+
+    # update thread
+    def get_unified_children(self, acd_paths):
+        children = []
+        for acd_path in acd_paths:
+            folder = self._acd_db.resolve(acd_path)
+            tmp = self.common.get_children(folder)
+            children.extend(tmp)
+        children = sorted(children, key=lambda _: _.modified, reverse=True)
+        return children
+
+    # update thread
+    def get_oldest_mtime(self):
+        entries = self.common.get_cache_entries()
+        full_path, mtime = entries[0]
+        # just convert from local TZ, no need to use UTC
+        return dt.datetime.fromtimestamp(mtime)
+
+    # update thread
+    def download_later(self, node):
+        dtd = DownloadTaskDescriptor(priority, 0, True)
+        self._download_context.push_queue(dtd)
+
+
+class DownloadTaskDescriptor(object):
 
     def __init__(self, priority, node, need_mtime):
         self._priority = priority if priority is not None else sys.maxsize
