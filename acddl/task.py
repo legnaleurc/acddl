@@ -4,6 +4,7 @@ import hashlib
 import os
 import os.path as op
 import queue
+import shutil
 import subprocess as sp
 import sys
 import threading
