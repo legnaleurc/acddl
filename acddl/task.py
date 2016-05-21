@@ -1,4 +1,5 @@
 import contextlib
+import datetime as dt
 import hashlib
 import os
 import os.path as op
@@ -197,7 +198,8 @@ class Context(object):
     def get_oldest_mtime(self):
         entries = self._get_cache_entries()
         full_path, mtime = entries[0]
-        return mtime
+        # just convert from local TZ, no need to use UTC
+        return dt.datetime.fromtimestamp(mtime)
 
     # worker thread
     def reserve_space(self, node):
@@ -225,7 +227,7 @@ class Context(object):
     def _get_cache_entries(self):
         entries = os.listdir(self._cache_folder)
         entries = (op.join(self._cache_folder, _) for _ in entries)
-        entries = ((_, os.stat(_).st_mtime) for _ in entries)
+        entries = ((_, op.getmtime(_)) for _ in entries)
         entries = sorted(entries, key=lambda _: _[1])
         return entries
 
