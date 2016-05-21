@@ -168,6 +168,10 @@ class CommonContext(object):
     def get_node(self, node_id):
         return self._acd_db.get_node(node_id)
 
+    # update thread
+    def resolve_path(self, acd_path):
+        return self._acd_db.resolve(acd_path)
+
     # all threads
     def get_children(self, node):
         folders, files = self._acd_db.list_children(node.id)
@@ -313,7 +317,7 @@ class UpdateContext(object):
     def get_unified_children(self, acd_paths):
         children = []
         for acd_path in acd_paths:
-            folder = self._acd_db.resolve(acd_path)
+            folder = self.common.resolve_path(acd_path)
             tmp = self.common.get_children(folder)
             children.extend(tmp)
         children = sorted(children, key=lambda _: _.modified, reverse=True)
