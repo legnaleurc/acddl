@@ -53,7 +53,7 @@ class DownloadThread(threading.Thread):
                 if not dtd.is_valid():
                     # special value, need stop
                     break
-                self._download(dtd.node, self._context.root_folder, dtd.need_mtime)
+                self._download(dtd.node, self._context.common.root_folder, dtd.need_mtime)
 
     def _download(self, node, local_path, need_mtime):
         local_path = local_path if local_path else ''
