@@ -10,6 +10,7 @@ import sys
 import threading
 
 from acdcli.api import client as ACD
+from acdcli.api.common import RequestError
 from acdcli.cache import db as DB
 from acdcli.utils import hashing
 from acdcli.utils.time import datetime_to_timestamp
