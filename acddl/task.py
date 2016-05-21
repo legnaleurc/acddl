@@ -204,7 +204,7 @@ class Context(object):
     # worker thread
     def reserve_space(self, node):
         entries = None
-        while self._need_recycle():
+        while self._need_recycle(node):
             if not entries:
                 entries = self._get_cache_entries()
             full_path, mtime = entries.pop(0)
@@ -215,7 +215,7 @@ class Context(object):
             INFO('acddl') << 'recycled:' << full_path
 
     # worker thread
-    def _need_recycle(self):
+    def _need_recycle(self, node):
         free_space = self._get_free_space()
         required_space = self._get_node_size(node)
         gb_free_space = free_space / 1024 / 1024 / 1024
