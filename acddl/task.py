@@ -4,6 +4,7 @@ import hashlib
 import os
 import os.path as op
 import queue
+import subprocess as sp
 import sys
 import threading
 
@@ -139,11 +140,15 @@ class UpdateThread(threading.Thread):
                 if acd_paths is None:
                     # special value, need stop
                     break
+                self._sync()
                 children = self._context.get_unified_children(acd_paths)
                 mtime = self._context.get_oldest_mtime()
                 children = filter(lambda _: _.modified > mtime, children)
                 for child in children:
                     self._context.download_later(child)
+
+    def _sync(self):
+        sp.run(['acdcli', 'sync'], stdout=sp.DEVNULL, stderr=sp.DEVNULL)
 
 
 # used by all threads
