@@ -378,7 +378,7 @@ class UpdateContext(object):
 
     # update thread
     def download_later(self, node):
-        dtd = DownloadTaskDescriptor.create_mtime(node)
+        dtd = DownloadTaskDescriptor.create_need_mtime(node)
         self._download_context.push_queue(dtd)
 
 
