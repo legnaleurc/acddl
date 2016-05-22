@@ -35,7 +35,7 @@ class Controller(object):
     def download(self, node_id):
         node = self._common_context.get_node(node_id)
         if node:
-            dtd = DownloadTaskDescriptor.no_mtime(node)
+            dtd = DownloadTaskDescriptor.create_no_mtime(node)
             self._download_context.push_queue(dtd)
 
     def update_cache_from(self, acd_paths):
@@ -231,7 +231,7 @@ class DownloadContext(object):
 
     # main thread
     def end_queue(self):
-        td = DownloadTaskDescriptor.stop()
+        td = DownloadTaskDescriptor.create_stop()
         with self._queue_lock:
             self._queue.put(td)
 
@@ -373,31 +373,31 @@ class UpdateContext(object):
 
     # update thread
     def flush(self):
-        dtd = DownloadTaskDescriptor.flush()
+        dtd = DownloadTaskDescriptor.create_flush()
         self._download_context.push_queue(dtd)
 
     # update thread
     def download_later(self, node):
-        dtd = DownloadTaskDescriptor.mtime(node)
+        dtd = DownloadTaskDescriptor.create_mtime(node)
         self._download_context.push_queue(dtd)
 
 
 class DownloadTaskDescriptor(object):
 
     @staticmethod
-    def stop():
+    def create_stop():
         return DownloadTaskDescriptor(sys.maxsize, None, None, True, False)
 
     @staticmethod
-    def flush():
+    def create_flush():
         return DownloadTaskDescriptor(sys.maxsize - 1, None, None, False, True)
 
     @staticmethod
-    def mtime(node):
+    def create_need_mtime(node):
         return DownloadTaskDescriptor(0, node, True, False, False)
 
     @staticmethod
-    def no_mtime(node):
+    def create_no_mtime(node):
         return DownloadTaskDescriptor(1, node, False, False, False)
 
     def __init__(self, priority, node, need_mtime, stop, flush):
