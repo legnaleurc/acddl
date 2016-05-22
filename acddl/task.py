@@ -154,6 +154,8 @@ class UpdateThread(threading.Thread):
                     children = self._context.get_unified_children(acd_paths)
                     mtime = self._context.get_oldest_mtime()
                     children = filter(lambda _: _.modified > mtime, children)
+                    # flush previous update queue
+                    self._context.flush()
                     for child in children:
                         self._context.download_later(child)
         except Exception as e:
@@ -368,6 +370,11 @@ class UpdateContext(object):
         full_path, mtime = entries[0]
         # just convert from local TZ, no need to use UTC
         return dt.datetime.fromtimestamp(mtime)
+
+    # update thread
+    def flush(self):
+        dtd = DownloadTaskDescriptor.flush()
+        self._download_context.push_queue(dtd)
 
     # update thread
     def download_later(self, node):
