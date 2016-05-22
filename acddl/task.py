@@ -53,7 +53,7 @@ class DownloadThread(threading.Thread):
     def run(self):
         while True:
             with self._context.pop_queue() as dtd:
-                if not dtd.is_valid():
+                if dtd.stop:
                     # special value, need stop
                     break
                 self._download(dtd.node, self._context.common.root_folder, dtd.need_mtime)
@@ -70,7 +70,7 @@ class DownloadThread(threading.Thread):
         else:
             ok = self._download_file(node, local_path, full_path)
 
-        if need_mtime:
+        if ok and need_mtime:
             ok = preserve_mtime(node, full_path)
 
         return ok
@@ -391,8 +391,13 @@ class DownloadTaskDescriptor(object):
             return self._node.modified == that._node.modified
         return self._node == that._node
 
-    def is_valid(self):
-        return all(_ is not None for _ in (self._node, self._need_mtime))
+    @property
+    def stop(self):
+        return self._stop
+
+    @property
+    def flush(self):
+        return self._flush
 
     @property
     def node(self):
