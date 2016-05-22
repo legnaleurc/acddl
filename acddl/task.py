@@ -16,7 +16,7 @@ from acdcli.utils import hashing
 from acdcli.utils.time import datetime_to_timestamp
 from tornado import ioloop
 
-from .log import ERROR, WARNING, INFO
+from .log import ERROR, WARNING, INFO, EXCEPTION
 
 
 class Controller(object):
@@ -51,12 +51,15 @@ class DownloadThread(threading.Thread):
 
     # Override
     def run(self):
-        while True:
-            with self._context.pop_queue() as dtd:
-                if dtd.stop:
-                    # special value, need stop
-                    break
-                self._download(dtd.node, self._context.common.root_folder, dtd.need_mtime)
+        try:
+            while True:
+                with self._context.pop_queue() as dtd:
+                    if dtd.stop:
+                        # special value, need stop
+                        break
+                    self._download(dtd.node, self._context.common.root_folder, dtd.need_mtime)
+        except Exception as e:
+            EXCEPTION('acddl') << str(e)
 
     def _download(self, node, local_path, need_mtime):
         local_path = local_path if local_path else ''
@@ -138,17 +141,20 @@ class UpdateThread(threading.Thread):
 
     # Override
     def run(self):
-        while True:
-            with self._context.pop_queue() as acd_paths:
-                if acd_paths is None:
-                    # special value, need stop
-                    break
-                self._sync()
-                children = self._context.get_unified_children(acd_paths)
-                mtime = self._context.get_oldest_mtime()
-                children = filter(lambda _: _.modified > mtime, children)
-                for child in children:
-                    self._context.download_later(child)
+        try:
+            while True:
+                with self._context.pop_queue() as acd_paths:
+                    if acd_paths is None:
+                        # special value, need stop
+                        break
+                    self._sync()
+                    children = self._context.get_unified_children(acd_paths)
+                    mtime = self._context.get_oldest_mtime()
+                    children = filter(lambda _: _.modified > mtime, children)
+                    for child in children:
+                        self._context.download_later(child)
+        except Exception as e:
+            EXCEPTION('acddl') << str(e)
 
     def _sync(self):
         INFO('acddl') << 'syncing'

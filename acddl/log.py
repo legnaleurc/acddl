@@ -12,7 +12,7 @@ class Logger(object):
         self._parts = []
 
     def __lshift__(self, part):
-        self._parts.append(part)
+        self._parts.append(str(part))
         return self
 
     def __del__(self):
