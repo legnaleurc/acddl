@@ -35,7 +35,7 @@ class Controller(object):
     def download(self, node_id):
         node = self._common_context.get_node(node_id)
         if node:
-            dtd = DownloadTaskDescriptor(1, node, False)
+            dtd = DownloadTaskDescriptor.no_mtime(node)
             self._download_context.push_queue(dtd)
 
     def update_cache_from(self, acd_paths):
@@ -219,7 +219,7 @@ class DownloadContext(object):
 
     # main thread
     def end_queue(self):
-        td = DownloadTaskDescriptor(None, None, None)
+        td = DownloadTaskDescriptor.stop()
         self._queue.put(td)
         if self._thread:
             self._thread.join()
@@ -346,26 +346,50 @@ class UpdateContext(object):
 
     # update thread
     def download_later(self, node):
-        dtd = DownloadTaskDescriptor(0, node, True)
+        dtd = DownloadTaskDescriptor.mtime(node)
         self._download_context.push_queue(dtd)
 
 
 class DownloadTaskDescriptor(object):
 
-    def __init__(self, priority, node, need_mtime):
-        self._priority = priority if priority is not None else sys.maxsize
+    @staticmethod
+    def stop():
+        return DownloadTaskDescriptor(sys.maxsize, None, None, True, False)
+
+    @staticmethod
+    def flush():
+        return DownloadTaskDescriptor(sys.maxsize - 1, None, None, False, True)
+
+    @staticmethod
+    def mtime(node):
+        return DownloadTaskDescriptor(0, node, True, False, False)
+
+    @staticmethod
+    def no_mtime(node):
+        return DownloadTaskDescriptor(1, node, False, False, False)
+
+    def __init__(self, priority, node, need_mtime, stop, flush):
+        self._priority = priority
         self._node = node
         self._need_mtime = need_mtime
+        self._stop = stop
+        self._flush = flush
 
     def __lt__(self, that):
         if self._priority < that._priority:
             return False
         if self._priority == that._priority:
+            if not self._node or not that._node:
+                return False
             return self._node.modified > that._node.modified
         return self._priority > that._priority
 
     def __eq__(self, that):
-        return self._priority == that._priority and self._node.modified == that._node.modified
+        if self._priority != that._priority:
+            return False
+        if self._node and that._node:
+            return self._node.modified == that._node.modified
+        return self._node == that._node
 
     def is_valid(self):
         return all(_ is not None for _ in (self._node, self._need_mtime))
