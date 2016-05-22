@@ -57,6 +57,9 @@ class DownloadThread(threading.Thread):
                     if dtd.stop:
                         # special value, need stop
                         break
+                    if dtd.flush:
+                        self._context.flush_queue()
+                        continue
                     self._download(dtd.node, self._context.common.root_folder, dtd.need_mtime)
         except Exception as e:
             EXCEPTION('acddl') << str(e)
@@ -216,7 +219,8 @@ class DownloadContext(object):
         self._acd_client = ACD.ACDClient(auth_folder)
         self._queue = queue.PriorityQueue()
         self._thread = None
-        self._lock = threading.RLock()
+        self._queue_lock = threading.RLock()
+        self._thread_lock = threading.RLock()
 
     # thread safe
     @property
@@ -226,15 +230,19 @@ class DownloadContext(object):
     # main thread
     def end_queue(self):
         td = DownloadTaskDescriptor.stop()
-        self._queue.put(td)
-        if self._thread:
-            self._thread.join()
+        with self._queue_lock:
+            self._queue.put(td)
+
+        with self._thread_lock:
+            if self._thread:
+                self._thread.join()
 
     # main/update thread
     def push_queue(self, dtd):
-        self._queue.put(dtd)
+        with self._queue_lock:
+            self._queue.put(dtd)
 
-        with self._lock:
+        with self._thread_lock:
             if not self._thread:
                 self._thread = DownloadThread(self)
                 self._thread.start()
@@ -242,10 +250,21 @@ class DownloadContext(object):
     # download thread
     @contextlib.contextmanager
     def pop_queue(self):
-        try:
-            yield self._queue.get()
-        finally:
-            self._queue.task_done()
+        with self._queue_lock:
+            try:
+                yield self._queue.get()
+            finally:
+                self._queue.task_done()
+
+    # download thread
+    def flush_queue(self):
+        with self._queue_lock:
+            new_queue = queue.PriorityQueue()
+            while not self._queue.empty():
+                with self.pop_queue() as dtd:
+                    if dtd.stop or dtd.flush or not dtd.need_mtime:
+                        new_queue.put(dtd)
+            self._queue = new_queue
 
     # download thread
     def download_node(self, node, local_path):
