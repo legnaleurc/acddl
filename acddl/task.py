@@ -121,7 +121,7 @@ class DownloadThread(threading.Thread):
             except OSError as e:
                 if e.errno == 36:
                     WARNING('acddl') << 'download failed: file name too long'
-                    return True
+                    return False
                 # fatal unknown error
                 raise
             else:
