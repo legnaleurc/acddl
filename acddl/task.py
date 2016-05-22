@@ -154,8 +154,6 @@ class UpdateThread(threading.Thread):
                     children = self._context.get_unified_children(acd_paths)
                     mtime = self._context.get_oldest_mtime()
                     children = filter(lambda _: _.modified > mtime, children)
-                    # flush previous update queue
-                    self._context.flush()
                     for child in children:
                         self._context.download_later(child)
         except Exception as e:
@@ -259,6 +257,7 @@ class DownloadContext(object):
                 self._queue.task_done()
 
     # download thread
+    # FIXME breaks many things
     def flush_queue(self):
         with self._queue_lock:
             new_queue = queue.PriorityQueue()
