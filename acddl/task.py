@@ -219,7 +219,6 @@ class DownloadContext(object):
         self._acd_client = ACD.ACDClient(auth_folder)
         self._queue = queue.PriorityQueue()
         self._thread = None
-        self._queue_lock = threading.RLock()
         self._thread_lock = threading.RLock()
 
     # thread safe
@@ -230,8 +229,7 @@ class DownloadContext(object):
     # main thread
     def end_queue(self):
         td = DownloadTaskDescriptor.create_stop()
-        with self._queue_lock:
-            self._queue.put(td)
+        self._queue.put(td)
 
         with self._thread_lock:
             if self._thread:
@@ -239,8 +237,7 @@ class DownloadContext(object):
 
     # main/update thread
     def push_queue(self, dtd):
-        with self._queue_lock:
-            self._queue.put(dtd)
+        self._queue.put(dtd)
 
         with self._thread_lock:
             if not self._thread:
@@ -250,22 +247,20 @@ class DownloadContext(object):
     # download thread
     @contextlib.contextmanager
     def pop_queue(self):
-        with self._queue_lock:
-            try:
-                yield self._queue.get()
-            finally:
-                self._queue.task_done()
+        try:
+            yield self._queue.get()
+        finally:
+            self._queue.task_done()
 
     # download thread
     # FIXME breaks many things
     def flush_queue(self):
-        with self._queue_lock:
-            new_queue = queue.PriorityQueue()
-            while not self._queue.empty():
-                with self.pop_queue() as dtd:
-                    if dtd.stop or dtd.flush or not dtd.need_mtime:
-                        new_queue.put(dtd)
-            self._queue = new_queue
+        new_queue = queue.PriorityQueue()
+        while not self._queue.empty():
+            with self.pop_queue() as dtd:
+                if dtd.stop or dtd.flush or not dtd.need_mtime:
+                    new_queue.put(dtd)
+        self._queue = new_queue
 
     # download thread
     def download_node(self, node, local_path):
