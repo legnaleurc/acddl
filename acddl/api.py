@@ -10,14 +10,14 @@ class CacheHandler(web.RequestHandler):
         controller.update_cache_from(acd_paths)
 
 
-class DownloadHandler(web.RequestHandler):
+class NodeHandler(web.RequestHandler):
 
     def post(self):
-        node_id = self.get_argument('node_id', None)
+        id_ = self.get_argument('id', None)
 
-        if node_id is None:
+        if id_ is None:
             self.set_status(400)
             return
 
         controller = self.settings['controller']
-        controller.download(node_id)
+        controller.download(id_)

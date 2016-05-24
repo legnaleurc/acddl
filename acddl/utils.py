@@ -33,7 +33,7 @@ def main(args=None):
 
     application = web.Application([
         (r'/cache', api.CacheHandler),
-        (r'/download', api.DownloadHandler),
+        (r'/node', api.NodeHandler),
     ], controller=controller)
     server = httpserver.HTTPServer(application)
     server.listen(args.listen)
