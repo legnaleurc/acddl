@@ -10,8 +10,8 @@ A centralized download server
 
     download from the ACD paths
 
-### POST /download
+### POST /node
 
-* node_id (string)
+* id (string)
 
     the node ID
