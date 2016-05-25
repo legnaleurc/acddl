@@ -10,7 +10,7 @@ A centralized download server
 
     download from the ACD paths
 
-### POST /node
+### POST /nodes
 
 * id (string)
 
