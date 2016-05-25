@@ -71,6 +71,9 @@ class DownloadThread(threading.Thread):
         if not node.is_available:
             return False
 
+        if need_mtime and self._context.is_too_old(node):
+            return False
+
         if node.is_folder:
             ok = self._download_folder(node, full_path, need_mtime)
         else:
@@ -220,6 +223,7 @@ class DownloadContext(object):
         self._queue = queue.PriorityQueue()
         self._thread = None
         self._thread_lock = threading.RLock()
+        self._last_recycle = 0
 
     # thread safe
     @property
@@ -281,7 +285,13 @@ class DownloadContext(object):
                 shutil.rmtree(full_path)
             else:
                 os.remove(full_path)
+            self._last_recycle = mtime
             INFO('acddl') << 'recycled:' << full_path
+
+    # download thread
+    def is_too_old(self, node):
+        mtime = datetime_to_timestamp(node.modified)
+        return mtime <= self._last_recycle
 
     # download thread
     def _need_recycle(self, node):
