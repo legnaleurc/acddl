@@ -10,7 +10,7 @@ class CacheHandler(web.RequestHandler):
         controller.update_cache_from(acd_paths)
 
 
-class NodeHandler(web.RequestHandler):
+class NodesHandler(web.RequestHandler):
 
     def post(self):
         id_ = self.get_argument('id', None)
