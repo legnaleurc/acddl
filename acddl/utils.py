@@ -32,8 +32,8 @@ def main(args=None):
     signal.signal(signal.SIGINT, controller.stop)
 
     application = web.Application([
-        (r'/cache', api.CacheHandler),
         (r'/nodes', api.NodesHandler),
+        (r'/nodes/([a-zA-Z0-9\-_]{22})', api.NodesHandler),
     ], controller=controller)
     server = httpserver.HTTPServer(application)
     server.listen(args.listen)
