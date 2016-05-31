@@ -4,13 +4,13 @@ A centralized download server
 
 ## RESTful API
 
-### POST /cache
+### POST /nodes
 
 * acd_paths (list of string)
 
     download from the ACD paths
 
-### POST /nodes
+### PUT /nodes/{id}
 
 * id (string)
 
