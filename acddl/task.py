@@ -371,6 +371,8 @@ class UpdateContext(object):
     # update thread
     def get_oldest_mtime(self):
         entries = self.common.get_cache_entries()
+        if not entries:
+            return dt.datetime.fromtimestamp(0)
         full_path, mtime = entries[0]
         # just convert from local TZ, no need to use UTC
         return dt.datetime.fromtimestamp(mtime)
