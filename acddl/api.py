@@ -3,6 +3,16 @@ from tornado import web
 
 class NodesHandler(web.RequestHandler):
 
+    def get(self):
+        pattern = self.get_argument('pattern', None)
+        if not pattern:
+            self.set_status(400)
+            return
+
+        controller = self.settings['controller']
+        nodes = controller.search(pattern)
+        return nodes
+
     def post(self):
         acd_paths = self.get_arguments('acd_paths[]')
 

@@ -4,6 +4,7 @@ import hashlib
 import os
 import os.path as op
 import queue
+import re
 import shutil
 import subprocess as sp
 import sys
@@ -31,6 +32,12 @@ class Controller(object):
         self._download_context.end_queue()
         main_loop = ioloop.IOLoop.instance()
         main_loop.stop()
+
+    def search(self, pattern):
+        real_pattern = re.sub(r'(\s|-)+', '.*', pattern)
+        nodes = self._common_context.find_by_regex(real_pattern)
+        nodes = {_.id: self._common_context.get_path(_) for _ in nodes}
+        return nodes
 
     def download(self, node_id):
         node = self._common_context.get_node(node_id)
@@ -190,7 +197,7 @@ class CommonContext(object):
     def get_node(self, node_id):
         return self._acd_db.get_node(node_id)
 
-    # download thread
+    # download/main thread
     def get_path(self, node):
         return self._acd_db.first_path(node.id) + node.name
 
@@ -211,6 +218,10 @@ class CommonContext(object):
         entries = ((_, op.getmtime(_)) for _ in entries)
         entries = sorted(entries, key=lambda _: _[1])
         return entries
+
+    # main thread
+    def find_by_regex(self, pattern):
+        return self._acd_db.find_by_regex(pattern)
 
 
 # used by download/main thread
