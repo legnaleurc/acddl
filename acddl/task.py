@@ -105,9 +105,9 @@ class DownloadThread(threading.Thread):
             local = md5sum(full_path)
             remote = node.md5
             if local == remote:
-                INFO('acddl') << 'skip same file:' << full_path
+                INFO('acddl') << 'skip same file'
                 return True
-            INFO('acddl') << 'md5 mismatch:' << full_path
+            INFO('acddl') << 'md5 mismatch'
             os.remove(full_path)
 
         self._context.reserve_space(node)
