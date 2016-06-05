@@ -11,7 +11,7 @@ class NodesHandler(web.RequestHandler):
 
         controller = self.settings['controller']
         nodes = controller.search(pattern)
-        return nodes
+        self.write(nodes)
 
     def post(self):
         acd_paths = self.get_arguments('acd_paths[]')
