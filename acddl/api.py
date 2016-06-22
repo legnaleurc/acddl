@@ -1,3 +1,5 @@
+import json
+
 from tornado import web
 
 
@@ -35,4 +37,6 @@ class EqualityHandler(web.RequestHandler):
 
         controller = self.settings['controller']
         result = controller.compare(nodes)
+        # iDontCare
+        result = json.dumps(result)
         self.write(result)
