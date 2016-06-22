@@ -31,7 +31,7 @@ class NodesHandler(web.RequestHandler):
 class EqualityHandler(web.RequestHandler):
 
     def get(self):
-        nodes = self.get_arguments('nodes')
+        nodes = self.get_arguments('nodes[]')
 
         controller = self.settings['controller']
         result = controller.compare(nodes)
