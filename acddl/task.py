@@ -49,6 +49,14 @@ class Controller(object):
     def update_cache_from(self, acd_paths):
         self._update_context.push_queue(acd_paths)
 
+    def compare(self, node_ids):
+        nodes = (self._common_context.get_node(_) for _ in node_ids)
+        unique = set(_.md5 for _ in nodes)
+        if len(unique) == 1:
+            return True
+        else:
+            return [_.size for _ in nodes]
+
 
 class DownloadThread(threading.Thread):
 

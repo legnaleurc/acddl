@@ -26,3 +26,13 @@ class NodesHandler(web.RequestHandler):
 
         controller = self.settings['controller']
         controller.download(id_)
+
+
+class EqualityHandler(web.RequestHandler):
+
+    def get(self):
+        nodes = self.get_arguments('nodes')
+
+        controller = self.settings['controller']
+        result = controller.compare(nodes)
+        self.write(result)
