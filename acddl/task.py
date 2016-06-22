@@ -35,6 +35,7 @@ class Controller(object):
 
     def search(self, pattern):
         real_pattern = re.sub(r'(\s|-)+', '.*', pattern)
+        real_pattern = '.*{0}.*'.format(real_pattern)
         nodes = self._common_context.find_by_regex(real_pattern)
         nodes = {_.id: self._common_context.get_path(_) for _ in nodes if _.is_available}
         return nodes
