@@ -95,8 +95,11 @@ class DownloadThread(threading.Thread):
         else:
             ok = self._download_file(node, local_path, full_path)
 
-        if ok and need_mtime:
-            ok = preserve_mtime(node, full_path)
+        if ok:
+            if need_mtime:
+                ok = preserve_mtime_by_node(full_path, node)
+            else:
+                ok = update_mtime(full_path, dt.datetime.now().timestamp())
 
         return ok
 
@@ -477,10 +480,14 @@ def md5sum(full_path):
     return hasher.hexdigest()
 
 
-def preserve_mtime(node, full_path):
+def preserve_mtime_by_node(full_path, node):
     mtime = datetime_to_timestamp(node.modified)
+    return update_mtime(full_path, mtime)
+
+
+def update_mtime(full_path, s_mtime):
     try:
-        os.utime(full_path, (mtime, mtime))
+        os.utime(full_path, (s_mtime, s_mtime))
     except OSError as e:
         # file name too long
         if e.errno != 36:
