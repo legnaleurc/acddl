@@ -69,6 +69,7 @@ class AsyncWorker(object):
         super(AsyncWorker, self).__init__()
 
         self._thread = threading.Thread(target=self._run)
+        self._ready_lock = threading.Condition()
         self._loop = None
         self._queue = tq.PriorityQueue()
         self._done = {}
@@ -80,6 +81,9 @@ class AsyncWorker(object):
     def start(self):
         if not self.is_alive and self._loop is None:
             self._thread.start()
+            with self._ready_lock:
+                if not self._ready_lock.wait_for(lambda: self._loop is not None, 1):
+                    raise Exception('timeout')
 
     def stop(self):
         self._loop.add_callback(self._loop.stop)
@@ -93,10 +97,14 @@ class AsyncWorker(object):
         rv = await tg.Task(_)
         return rv
 
+    def do_later(self, task):
+        self._loop.add_callback(self.do, task)
+
     def _run(self):
-        assert self._loop is None
         self._loop = ti.IOLoop()
         self._loop.add_callback(self._process)
+        with self._ready_lock:
+            self._ready_lock.notify()
         self._loop.start()
         self._loop.close()
 

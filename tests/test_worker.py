@@ -1,6 +1,7 @@
 import unittest
+import functools
 
-from tornado import ioloop as ti
+from tornado import ioloop as ti, gen as tg
 
 from acddl import worker
 
@@ -37,7 +38,7 @@ class TestAsyncWorker(unittest.TestCase):
         async_call(self._worker.stop)
         self.assertFalse(self._worker.is_alive)
 
-    def testDo1(self):
+    def testDoWithAsync(self):
         x = [1]
         async def fn():
             x[0] = 2
@@ -48,7 +49,7 @@ class TestAsyncWorker(unittest.TestCase):
         self.assertEqual(x[0], 2)
         self.assertEqual(rv, 3)
 
-    def testDo2(self):
+    def testDoWithSync(self):
         x = [1]
         def fn():
             x[0] = 2
@@ -58,6 +59,15 @@ class TestAsyncWorker(unittest.TestCase):
         rv = async_call(fn_)
         self.assertEqual(x[0], 2)
         self.assertEqual(rv, 3)
+
+    def testDoLater(self):
+        x = [1]
+        def fn():
+            x[0] = 2
+            return 3
+        self._worker.do_later(fn)
+        async_call(functools.partial(tg.sleep, 0.001))
+        self.assertEqual(x[0], 2)
 
 
 def async_call(fn):
