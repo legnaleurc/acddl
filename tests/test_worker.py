@@ -59,61 +59,42 @@ class TestAsyncWorker(unittest.TestCase):
         self.assertEqual(rv, 42)
 
     def testDoLaterWithSync(self):
-        x = [1]
-        def fn():
-            x[0] = 2
+        fn = self._createSyncMock()
         self._worker.do_later(fn)
         async_call(functools.partial(tg.sleep, 0.001))
-        self.assertEqual(x[0], 2)
+        fn.assert_called_once_with()
 
     def testDoLaterWithAsync(self):
-        x = [1]
-        async def fn():
-            await tg.moment
-            x[0] = 2
+        fn = self._createAsyncMock()
         self._worker.do_later(fn)
         async_call(functools.partial(tg.sleep, 0.001))
-        self.assertEqual(x[0], 2)
+        fn.assert_called_once_with()
 
     def testDoWithSyncPartial(self):
-        x = [1]
-        def fn(rv):
-            x[0] = 2
-            return rv
-        async def fn_():
-            return await self._worker.do(functools.partial(fn, 3))
-        rv = async_call(fn_)
-        self.assertEqual(x[0], 2)
-        self.assertEqual(rv, 3)
+        fn = self._createSyncMock()
+        rv = async_call(self._worker.do, functools.partial(fn, 1, k=7))
+        fn.assert_called_once_with(1, k=7)
+        self.assertEqual(rv, 42)
 
     def testDoWithAsyncPartial(self):
-        x = [1]
-        async def fn(rv):
-            await tg.moment
-            x[0] = 2
-            return rv
-        async def fn_():
-            return await self._worker.do(worker.AsyncTask(fn, 3))
-        rv = async_call(fn_)
-        self.assertEqual(x[0], 2)
-        self.assertEqual(rv, 3)
+        fn = self._createAsyncMock()
+        rv = async_call(self._worker.do, functools.partial(fn, 1, k=7))
+        fn.assert_called_once_with(1, k=7)
+        fn.assert_awaited()
+        self.assertEqual(rv, 42)
 
     def testDoLaterWithSyncPartial(self):
-        x = [1]
-        def fn(v):
-            x[0] = v
-        self._worker.do_later(functools.partial(fn, 2))
+        fn = self._createSyncMock()
+        self._worker.do_later(functools.partial(fn, 1, k=7))
         async_call(functools.partial(tg.sleep, 0.001))
-        self.assertEqual(x[0], 2)
+        fn.assert_called_once_with(1, k=7)
 
     def testDoLaterWithAsyncPartial(self):
-        x = [1]
-        async def fn(v):
-            await tg.moment
-            x[0] = v
-        self._worker.do_later(worker.AsyncTask(fn, 2))
+        fn = self._createAsyncMock()
+        self._worker.do_later(functools.partial(fn, 1, k=7))
         async_call(functools.partial(tg.sleep, 0.001))
-        self.assertEqual(x[0], 2)
+        fn.assert_called_once_with(1, k=7)
+        fn.assert_awaited()
 
 
 class AsyncMock(um.Mock):
