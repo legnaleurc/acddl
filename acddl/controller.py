@@ -67,13 +67,21 @@ class DownloadController(object):
         self._worker = worker.AsyncWorker()
         self._last_recycle = 0
 
+    def close(self):
+        self._worker.stop()
+
     def download_later(self, node):
+        self._ensure_alive()
         task = self._make_download_task(node, need_mtime=True)
         self._worker.do_later(task)
 
     def multiple_download_later(self, *remote_paths):
+        self._ensure_alive()
         task = Task(functools.partial(self._download_from, *remote_paths))
         self._worker.do_later(task)
+
+    def _ensure_alive(self):
+        self._worker.start()
 
     async def _download_from(self, *remote_paths):
         await self._sync()
