@@ -112,10 +112,9 @@ class AsyncWorker(object):
         while True:
             task = await self._queue.get()
             try:
-                if inspect.iscoroutinefunction(task):
-                    rv = await task()
-                else:
-                    rv = task()
+                rv = task()
+                if inspect.isawaitable(rv):
+                    rv = await rv
             except Exception as e:
                 rv = None
                 EXCEPTION('acddl') << str(e)
@@ -130,11 +129,27 @@ class AsyncWorker(object):
 @functools.total_ordering
 class Task(object):
 
-    def __init__(self):
+    def __init__(self, runnable=None, *args, **kwargs):
         super(Task, self).__init__()
+
+        self._runnable = runnable
+        self._args = args
+        self._kwargs = kwargs
 
     def __eq__(self, that):
         return id(self) == id(that)
 
     def __lt__(self, that):
         return id(self) < id(that)
+
+    def __call__(self):
+        return self._runnable(*self._args, **self._kwargs)
+
+
+class AsyncTask(Task):
+
+    def __init__(self, runnable=None, *args, **kwargs):
+        super(AsyncTask, self).__init__(runnable, *args, **kwargs)
+
+    def __await__(self):
+        return self.__await__(*self._args, **self._kwargs)
