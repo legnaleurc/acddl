@@ -39,15 +39,21 @@ class TestAsyncWorker(unittest.TestCase):
         async_call(self._worker.stop)
         self.assertFalse(self._worker.is_alive)
 
+    @um.patch('tornado.ioloop.IOLoop', autospec=True)
     @um.patch('threading.Condition', autospec=True)
     @um.patch('threading.Thread', autospec=True)
-    @unittest.skip('mystery fail')
-    def testStartTwice(self, FakeThread, FakeRLock):
+    def testStartTwice(self, FakeThread, FakeCondition, FakeIOLoop):
         w = worker.AsyncWorker()
-        w._thread.start.side_effect = w._run
+        w._thread.is_alive.return_value = False
+        def thread_start_side_effect():
+            w._run()
+            w._thread.is_alive.return_value = True
+        w._thread.start.side_effect = thread_start_side_effect
         w.start()
-        w._thread.start()
+        the_loop = w._loop
+        w.start()
         w._thread.start.assert_called_once_with()
+        self.assertEqual(the_loop, w._loop)
 
     def testDoWithSync(self):
         fn = self._createSyncMock()
