@@ -86,8 +86,10 @@ class AsyncWorker(object):
                     raise Exception('timeout')
 
     def stop(self):
-        self._loop.add_callback(self._loop.stop)
-        self._thread.join()
+        if self._loop is not None:
+            self._loop.add_callback(self._loop.stop)
+        if self.is_alive:
+            self._thread.join()
 
     async def do(self, task):
         def _(callback):
