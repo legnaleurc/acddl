@@ -1,5 +1,6 @@
-import unittest
 import functools
+import unittest
+from unittest import mock as um
 
 from tornado import ioloop as ti, gen as tg
 
@@ -38,16 +39,14 @@ class TestAsyncWorker(unittest.TestCase):
         async_call(self._worker.stop)
         self.assertFalse(self._worker.is_alive)
 
+    def _createSyncMock(self):
+        return um.Mock(return_value=42)
+
     def testDoWithSync(self):
-        x = [1]
-        def fn():
-            x[0] = 2
-            return 3
-        async def fn_():
-            return await self._worker.do(fn)
-        rv = async_call(fn_)
-        self.assertEqual(x[0], 2)
-        self.assertEqual(rv, 3)
+        fn = self._createSyncMock()
+        rv = async_call(self._worker.do, fn)
+        fn.assert_called_once_with()
+        self.assertEqual(rv, 42)
 
     def testDoWithAsync(self):
         x = [1]
@@ -119,5 +118,5 @@ class TestAsyncWorker(unittest.TestCase):
         self.assertEqual(x[0], 2)
 
 
-def async_call(fn):
-    return ti.IOLoop.instance().run_sync(fn)
+def async_call(fn, *args, **kwargs):
+    return ti.IOLoop.instance().run_sync(functools.partial(fn, *args, **kwargs))
