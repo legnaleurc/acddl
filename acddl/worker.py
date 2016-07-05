@@ -129,12 +129,10 @@ class AsyncWorker(object):
 @functools.total_ordering
 class Task(object):
 
-    def __init__(self, runnable=None, *args, **kwargs):
+    def __init__(self, callable_=None):
         super(Task, self).__init__()
 
-        self._runnable = runnable
-        self._args = args
-        self._kwargs = kwargs
+        self._callable = callable_
 
     def __eq__(self, that):
         return id(self) == id(that)
@@ -143,13 +141,6 @@ class Task(object):
         return id(self) < id(that)
 
     def __call__(self):
-        return self._runnable(*self._args, **self._kwargs)
-
-
-class AsyncTask(Task):
-
-    def __init__(self, runnable=None, *args, **kwargs):
-        super(AsyncTask, self).__init__(runnable, *args, **kwargs)
-
-    def __await__(self):
-        return self.__await__(*self._args, **self._kwargs)
+        if not self._callable:
+            raise NotImplementedError()
+        return self._callable()
