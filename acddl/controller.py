@@ -65,23 +65,27 @@ class DownloadController(object):
     def __init__(self, context):
         self._context = context
         self._worker = worker.AsyncWorker()
+        self._last_recycle = 0
 
     def download_later(self, node):
-        task = DownloadTask(node, need_mtime=True)
+        task = self._make_download_task(node, need_mtime=True)
         self._worker.do_later(task)
 
     def multiple_download_later(self, *remote_paths):
-        task = RunnableTask(functools.partial(self._download_from, *remote_paths))
+        task = Task(functools.partial(self._download_from, *remote_paths))
         self._worker.do_later(task)
 
     async def _download_from(self, *remote_paths):
         await self._sync()
-        children = self._context.get_unified_children(remote_paths)
-        mtime = self._context.get_oldest_mtime()
+        children = await self._get_unified_children(remote_paths)
+        mtime = self._get_oldest_mtime()
         children = filter(lambda _: _.modified > mtime, children)
         for child in children:
-            task = DownloadTask(child, need_mtime=False)
-            self._push_task(child)
+            task = self._make_download_task(child, need_mtime=False)
+            self._worker.do_later(task)
+
+    def _make_download_task(self, node, need_mtime):
+        return DownloadTask(self._download, node, self._context.root_folder, need_mtime)
 
     # TODO use api
     def _sync(self):
@@ -89,20 +93,41 @@ class DownloadController(object):
         sp.run(['acdcli', 'sync'], stdout=sp.DEVNULL, stderr=sp.DEVNULL)
         INFO('acddl') << 'synced'
 
-    def _download(self, node, local_path, need_mtime):
+    async def _get_unified_children(self, remote_paths):
+        children = []
+        for remote_path in remote_paths:
+            folder = await self._context.acd_db.resolve_path(remote_path)
+            tmp = await self._context.acd_db.get_children(folder)
+            children.extend(tmp)
+        children = sorted(children, key=lambda _: _.modified, reverse=True)
+        return children
+
+    def _get_oldest_mtime(self):
+        entries = self._get_cache_entries()
+        if not entries:
+            return dt.datetime.fromtimestamp(0)
+        full_path, mtime = entries[0]
+        # just convert from local TZ, no need to use UTC
+        return dt.datetime.fromtimestamp(mtime)
+
+    def _is_too_old(self, node):
+        mtime = datetime_to_timestamp(node.modified)
+        return mtime <= self._last_recycle
+
+    async def _download(self, node, local_path, need_mtime):
         local_path = local_path if local_path else ''
         full_path = op.join(local_path, node.name)
 
         if not node.is_available:
             return False
 
-        if need_mtime and self._context.is_too_old(node):
+        if need_mtime and self._is_too_old(node):
             return False
 
         if node.is_folder:
-            ok = self._download_folder(node, full_path, need_mtime)
+            ok = await self._download_folder(node, full_path, need_mtime)
         else:
-            ok = self._download_file(node, local_path, full_path)
+            ok = await self._download_file(node, local_path, full_path)
 
         if ok:
             if need_mtime:
@@ -112,22 +137,22 @@ class DownloadController(object):
 
         return ok
 
-    def _download_folder(self, node, full_path, need_mtime):
+    async def _download_folder(self, node, full_path, need_mtime):
         try:
             os.makedirs(full_path, exist_ok=True)
         except OSError:
             WARNING('acddl') << 'mkdir failed:' << full_path
             return False
 
-        children = self._context.common.get_children(node)
+        children = await self._context.acd_db.get_children(node)
         for child in children:
-            ok = self._download(child, full_path, need_mtime)
+            ok = await self._download(child, full_path, need_mtime)
             if not ok:
                 return False
 
         return True
 
-    def _download_file(self, node, local_path, full_path):
+    async def _download_file(self, node, local_path, full_path):
         if op.isfile(full_path):
             INFO('acddl') << 'checking existed:' << full_path
             local = md5sum(full_path)
@@ -138,14 +163,14 @@ class DownloadController(object):
             INFO('acddl') << 'md5 mismatch'
             os.remove(full_path)
 
-        self._context.reserve_space(node)
+        self._reserve_space(node)
 
         # retry until succeed
         while True:
             try:
-                remote_path = self._context.common.get_path(node)
+                remote_path = await self._context.acd_db.get_path(node)
                 INFO('acddl') << 'downloading:' << remote_path
-                local_hash = self._context.download_node(node, local_path)
+                local_hash = await self._context.acd_client.download_node(node, local_path)
                 INFO('acddl') << 'downloaded'
             except RequestError as e:
                 ERROR('acddl') << 'download failed:' << str(e)
@@ -166,96 +191,15 @@ class DownloadController(object):
         return True
 
 
-class ACDClientWorker(object):
-
-    def __init__(self, context):
-        self._context = context
-        self._worker = worker.AsyncWorker()
-        auth_folder = op.expanduser('~/.cache/acd_cli')
-        self._acd_client = ACD.ACDClient(auth_folder)
-
-    def download_later(self, node, need_mtime):
-        self._ensure_alive()
-        return self._download(self._node, self._context.root_folder)
-
-    def _ensure_alive(self):
-        if not self._worker.is_alive:
-            self._worker.start()
-
-    def _download_folder(self, node, full_path):
-        try:
-            os.makedirs(full_path, exist_ok=True)
-        except OSError:
-            WARNING('acddl') << 'mkdir failed:' << full_path
-            return False
-
-        children = self._context.db.get_children(node)
-        for child in children:
-            ok = self._download(child, full_path)
-            if not ok:
-                return False
-
-        return True
-
-    def _download_file(self, node, local_path, full_path):
-        if op.isfile(full_path):
-            INFO('acddl') << 'checking existed:' << full_path
-            local = md5sum(full_path)
-            remote = node.md5
-            if local == remote:
-                INFO('acddl') << 'skip same file'
-                return True
-            INFO('acddl') << 'md5 mismatch'
-            os.remove(full_path)
-
-        self._context.reserve_space(node)
-
-        # retry until succeed
-        while True:
-            try:
-                remote_path = self._context.common.get_path(node)
-                INFO('acddl') << 'downloading:' << remote_path
-                local_hash = self._download_node(node, local_path)
-                INFO('acddl') << 'downloaded'
-            except RequestError as e:
-                ERROR('acddl') << 'download failed:' << str(e)
-            except OSError as e:
-                if e.errno == 36:
-                    WARNING('acddl') << 'download skipped: file name too long'
-                    return False
-                # fatal unknown error
-                raise
-            else:
-                remote_hash = node.md5
-                if local_hash != remote_hash:
-                    INFO('acddl') << 'md5 mismatch:' << full_path
-                    os.remove(full_path)
-                else:
-                    break
-
-        return True
-
-    def _download_node(node, local_path):
-        hasher = hashing.IncrementalHasher()
-        self._acd_client.download_file(node.id, node.name, local_path, write_callbacks=[
-            hasher.update,
-        ])
-        return hasher.get_result()
-
-    def _is_too_old(self, node):
-        mtime = datetime_to_timestamp(node.modified)
-        return mtime <= self._last_recycle
-
-
 class DownloadTask(worker.Task):
 
-    def __init__(self, context, node, need_mtime):
-        super(DownloadTask, self).__init__()
+    def __init__(self, callable_, node, local_path, need_mtime):
+        super(DownloadTask, self).__init__(functools.partial(callable_, node, local_path, need_mtime))
 
-        self._context = context
         self._node = node
         self._need_mtime = need_mtime
-        self._priority = 0 if need_mtime else 1
+        # higher will do first
+        self._priority = 0 if self._need_mtime else 1
 
     def __lt__(self, that):
         if self._priority < that._priority:
@@ -273,95 +217,33 @@ class DownloadTask(worker.Task):
             return self._node.modified == that._node.modified
         return self._node == that._node
 
-    def __call__(self):
-        return self._download(self._node, self._context.root_folder)
+
+class ACDClientWorker(object):
+
+    def __init__(self, context):
+        self._context = context
+        self._worker = worker.AsyncWorker()
+        self._acd_client = None
+
+    async def download(self, node, local_path):
+        await self._ensure_alive()
+        return await self._worker.do(functools.partial(self._download, node, local_path))
+
+    async def _ensure_alive(self):
+        if not self._worker.is_alive:
+            self._worker.start()
+            await self._worker.do(self._create_client)
+
+    def _create_client(self):
+        auth_folder = op.expanduser('~/.cache/acd_cli')
+        self._acd_client = ACD.ACDClient(auth_folder)
 
     def _download(self, node, local_path):
-        local_path = local_path if local_path else ''
-        full_path = op.join(local_path, node.name)
-
-        if not node.is_available:
-            return False
-
-        if self._need_mtime and self._is_too_old(node):
-            return False
-
-        if node.is_folder:
-            ok = self._download_folder(node, full_path)
-        else:
-            ok = self._download_file(node, local_path, full_path)
-
-        if ok:
-            if self._need_mtime:
-                ok = preserve_mtime_by_node(full_path, node)
-            else:
-                ok = update_mtime(full_path, dt.datetime.now().timestamp())
-
-        return ok
-
-    def _download_folder(self, node, full_path):
-        try:
-            os.makedirs(full_path, exist_ok=True)
-        except OSError:
-            WARNING('acddl') << 'mkdir failed:' << full_path
-            return False
-
-        children = self._context.db.get_children(node)
-        for child in children:
-            ok = self._download(child, full_path)
-            if not ok:
-                return False
-
-        return True
-
-    def _download_file(self, node, local_path, full_path):
-        if op.isfile(full_path):
-            INFO('acddl') << 'checking existed:' << full_path
-            local = md5sum(full_path)
-            remote = node.md5
-            if local == remote:
-                INFO('acddl') << 'skip same file'
-                return True
-            INFO('acddl') << 'md5 mismatch'
-            os.remove(full_path)
-
-        self._context.reserve_space(node)
-
-        # retry until succeed
-        while True:
-            try:
-                remote_path = self._context.common.get_path(node)
-                INFO('acddl') << 'downloading:' << remote_path
-                local_hash = self._download_node(node, local_path)
-                INFO('acddl') << 'downloaded'
-            except RequestError as e:
-                ERROR('acddl') << 'download failed:' << str(e)
-            except OSError as e:
-                if e.errno == 36:
-                    WARNING('acddl') << 'download skipped: file name too long'
-                    return False
-                # fatal unknown error
-                raise
-            else:
-                remote_hash = node.md5
-                if local_hash != remote_hash:
-                    INFO('acddl') << 'md5 mismatch:' << full_path
-                    os.remove(full_path)
-                else:
-                    break
-
-        return True
-
-    def _download_node(node, local_path):
         hasher = hashing.IncrementalHasher()
         self._acd_client.download_file(node.id, node.name, local_path, write_callbacks=[
             hasher.update,
         ])
         return hasher.get_result()
-
-    def _is_too_old(self, node):
-        mtime = datetime_to_timestamp(node.modified)
-        return mtime <= self._last_recycle
 
 
 class DownloadThread(threading.Thread):
