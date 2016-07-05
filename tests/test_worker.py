@@ -39,11 +39,15 @@ class TestAsyncWorker(unittest.TestCase):
         async_call(self._worker.stop)
         self.assertFalse(self._worker.is_alive)
 
-    def _createSyncMock(self):
-        return um.Mock(return_value=42)
-
-    def _createAsyncMock(self):
-        return AsyncMock(return_value=42)
+    @um.patch('threading.Condition', autospec=True)
+    @um.patch('threading.Thread', autospec=True)
+    @unittest.skip('mystery fail')
+    def testStartTwice(self, FakeThread, FakeRLock):
+        w = worker.AsyncWorker()
+        w._thread.start.side_effect = w._run
+        w.start()
+        w._thread.start()
+        w._thread.start.assert_called_once_with()
 
     def testDoWithSync(self):
         fn = self._createSyncMock()
@@ -95,6 +99,12 @@ class TestAsyncWorker(unittest.TestCase):
         async_call(functools.partial(tg.sleep, 0.001))
         fn.assert_called_once_with(1, k=7)
         fn.assert_awaited()
+
+    def _createSyncMock(self):
+        return um.Mock(return_value=42)
+
+    def _createAsyncMock(self):
+        return AsyncMock(return_value=42)
 
 
 class AsyncMock(um.Mock):
