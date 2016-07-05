@@ -42,6 +42,9 @@ class TestAsyncWorker(unittest.TestCase):
     def _createSyncMock(self):
         return um.Mock(return_value=42)
 
+    def _createAsyncMock(self):
+        return AsyncMock(return_value=42)
+
     def testDoWithSync(self):
         fn = self._createSyncMock()
         rv = async_call(self._worker.do, fn)
@@ -49,16 +52,11 @@ class TestAsyncWorker(unittest.TestCase):
         self.assertEqual(rv, 42)
 
     def testDoWithAsync(self):
-        x = [1]
-        async def fn():
-            await tg.moment
-            x[0] = 2
-            return 3
-        async def fn_():
-            return await self._worker.do(fn)
-        rv = async_call(fn_)
-        self.assertEqual(x[0], 2)
-        self.assertEqual(rv, 3)
+        fn = self._createAsyncMock()
+        rv = async_call(self._worker.do, fn)
+        fn.assert_called_once_with()
+        fn.assert_awaited()
+        self.assertEqual(rv, 42)
 
     def testDoLaterWithSync(self):
         x = [1]
@@ -116,6 +114,23 @@ class TestAsyncWorker(unittest.TestCase):
         self._worker.do_later(worker.AsyncTask(fn, 2))
         async_call(functools.partial(tg.sleep, 0.001))
         self.assertEqual(x[0], 2)
+
+
+class AsyncMock(um.Mock):
+
+    def __init__(self, return_value=None):
+        super(AsyncMock, self).__init__(return_value=self)
+
+        self._return_value = return_value
+        self._awaited = False
+
+    def __await__(self):
+        yield tg.moment
+        self._awaited = True
+        return self._return_value
+
+    def assert_awaited(self):
+        assert self._awaited
 
 
 def async_call(fn, *args, **kwargs):
