@@ -96,12 +96,18 @@ class AsyncWorker(object):
         def _(callback):
             self._done[id(task)] = callback
 
+        task = self._ensure_task(task)
         await self._queue.put(task)
         rv = await tg.Task(_)
         return rv
 
     def do_later(self, task):
         self._loop.add_callback(self.do, task)
+
+    def _ensure_task(self, maybe_task):
+        if not isinstance(maybe_task, Task):
+            maybe_task = Task(maybe_task)
+        return maybe_task
 
     def _run(self):
         with self._ready_lock:
