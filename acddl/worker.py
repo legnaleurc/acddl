@@ -79,9 +79,10 @@ class AsyncWorker(object):
         return self._thread.is_alive()
 
     def start(self):
-        if not self.is_alive and self._loop is None:
+        if not self.is_alive:
             self._thread.start()
-            with self._ready_lock:
+        with self._ready_lock:
+            if self._loop is None:
                 if not self._ready_lock.wait_for(lambda: self._loop is not None, 1):
                     raise Exception('timeout')
 
@@ -103,9 +104,9 @@ class AsyncWorker(object):
         self._loop.add_callback(self.do, task)
 
     def _run(self):
-        self._loop = ti.IOLoop()
-        self._loop.add_callback(self._process)
         with self._ready_lock:
+            self._loop = ti.IOLoop()
+            self._loop.add_callback(self._process)
             self._ready_lock.notify()
         self._loop.start()
         self._loop.close()
