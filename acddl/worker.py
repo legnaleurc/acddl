@@ -116,6 +116,7 @@ class AsyncWorker(object):
             self._ready_lock.notify()
         self._loop.start()
         self._loop.close()
+        self._loop = None
 
     async def _process(self):
         while True:
