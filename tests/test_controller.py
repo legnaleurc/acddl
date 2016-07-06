@@ -12,6 +12,7 @@ class TestDownloadController(unittest.TestCase):
         dc = ctrl.DownloadController(context)
         node = um.Mock()
         dc.download_later(node)
+        dc._worker.start.assert_called_once_with()
         dc._worker.do_later.assert_called_once_with(um.ANY)
 
     @um.patch('acddl.worker.AsyncWorker', autospec=True)
@@ -19,4 +20,5 @@ class TestDownloadController(unittest.TestCase):
         context = um.Mock()
         dc = ctrl.DownloadController(context)
         dc.multiple_download_later('123', '456')
+        dc._worker.start.assert_called_once_with()
         dc._worker.do_later.assert_called_once_with(um.ANY)
