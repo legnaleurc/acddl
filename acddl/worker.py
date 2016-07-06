@@ -68,7 +68,7 @@ class AsyncWorker(object):
     def __init__(self):
         super(AsyncWorker, self).__init__()
 
-        self._thread = threading.Thread(target=self._run)
+        self._thread = None
         self._ready_lock = threading.Condition()
         self._loop = None
         self._queue = tq.PriorityQueue()
@@ -76,10 +76,11 @@ class AsyncWorker(object):
 
     @property
     def is_alive(self):
-        return self._thread.is_alive()
+        return self._thread and self._thread.is_alive()
 
     def start(self):
         if not self.is_alive:
+            self._thread = threading.Thread(target=self._run)
             self._thread.start()
         with self._ready_lock:
             if self._loop is None:
@@ -91,6 +92,7 @@ class AsyncWorker(object):
             self._loop.add_callback(self._loop.stop)
         if self.is_alive:
             self._thread.join()
+            self._thread = None
 
     async def do(self, task):
         def _(callback):

@@ -44,7 +44,7 @@ class TestAsyncWorker(unittest.TestCase):
     @um.patch('threading.Condition', autospec=True)
     @um.patch('threading.Thread', autospec=True)
     def testStartTwice(self, FakeThread, FakeCondition, FakeIOLoop):
-        w = self._createTemporaryWorker()
+        w = worker.AsyncWorker()
         w.start()
 
         the_loop = w._loop
@@ -56,11 +56,13 @@ class TestAsyncWorker(unittest.TestCase):
     @um.patch('threading.Condition', autospec=True)
     @um.patch('threading.Thread', autospec=True)
     def testStopTwice(self, FakeThread, FakeCondition, FakeIOLoop):
-        w = self._createTemporaryWorker()
+        w = worker.AsyncWorker()
         w.start()
         w.stop()
 
         w.stop()
+        self.assertIsNone(w._thread)
+        self.assertIsNone(w._loop)
 
     def testDoWithSync(self):
         fn = self._createSyncMock()
@@ -112,15 +114,6 @@ class TestAsyncWorker(unittest.TestCase):
         u.async_call(functools.partial(tg.sleep, 0.001))
         fn.assert_called_once_with(1, k=7)
         fn.assert_awaited()
-
-    def _createTemporaryWorker(self):
-        w = worker.AsyncWorker()
-        w._thread.is_alive.return_value = False
-        def thread_start_side_effect():
-            w._run()
-            w._thread.is_alive.return_value = True
-        w._thread.start.side_effect = thread_start_side_effect
-        return w
 
     def _createSyncMock(self):
         return um.Mock(return_value=42)
