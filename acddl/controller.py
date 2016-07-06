@@ -112,6 +112,13 @@ class DownloadController(object):
         # just convert from local TZ, no need to use UTC
         return dt.datetime.fromtimestamp(mtime)
 
+    def _get_cache_entries(self):
+        entries = os.listdir(self._context.root_folder)
+        entries = (op.join(self._context.root_folder, _) for _ in entries)
+        entries = ((_, op.getmtime(_)) for _ in entries)
+        entries = sorted(entries, key=lambda _: _[1])
+        return entries
+
     def _is_too_old(self, node):
         mtime = datetime_to_timestamp(node.modified)
         return mtime <= self._last_recycle
