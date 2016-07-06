@@ -1,15 +1,16 @@
 import contextlib
 import datetime as dt
+import functools
 import hashlib
 import os
 import os.path as op
+import pathlib
 import queue
 import re
 import shutil
 import subprocess as sp
 import sys
 import threading
-import functools
 
 from acdcli.api import client as ACD
 from acdcli.api.common import RequestError
@@ -21,6 +22,8 @@ from tornado import ioloop
 from .log import ERROR, WARNING, INFO, EXCEPTION
 from . import worker
 
+
+'''
 
 class Controller(object):
 
@@ -58,6 +61,8 @@ class Controller(object):
             return True
         else:
             return [_.size for _ in nodes]
+
+'''
 
 
 class DownloadController(object):
@@ -113,9 +118,11 @@ class DownloadController(object):
         return dt.datetime.fromtimestamp(mtime)
 
     def _get_cache_entries(self):
-        entries = os.listdir(self._context.root_folder)
-        entries = (op.join(self._context.root_folder, _) for _ in entries)
-        entries = ((_, op.getmtime(_)) for _ in entries)
+        # get first level children
+        entries = self._context.root.iterdir()
+        #entries = (op.join(self._context.root_folder, _) for _ in entries)
+        # generate (path, mtime) pair
+        entries = ((_, _.stat().st_mtime) for _ in entries)
         entries = sorted(entries, key=lambda _: _[1])
         return entries
 
@@ -227,6 +234,7 @@ class DownloadTask(worker.Task):
         return self._node == that._node
 
 
+'''
 class ACDClientWorker(object):
 
     def __init__(self, context):
@@ -659,6 +667,8 @@ class DownloadTaskDescriptor(object):
     @property
     def need_mtime(self):
         return self._need_mtime
+
+'''
 
 
 def md5sum(full_path):
