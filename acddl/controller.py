@@ -84,7 +84,7 @@ class DownloadController(object):
         self._worker.start()
 
     async def _download_from(self, *remote_paths):
-        await self._sync()
+        await self._context.acd_db.sync()
         children = await self._get_unified_children(remote_paths)
         mtime = self._get_oldest_mtime()
         children = filter(lambda _: _.modified > mtime, children)
@@ -94,12 +94,6 @@ class DownloadController(object):
 
     def _make_download_task(self, node, need_mtime):
         return DownloadTask(self._download, node, self._context.root_folder, need_mtime)
-
-    # TODO use api
-    def _sync(self):
-        INFO('acddl') << 'syncing'
-        sp.run(['acdcli', 'sync'], stdout=sp.DEVNULL, stderr=sp.DEVNULL)
-        INFO('acddl') << 'synced'
 
     async def _get_unified_children(self, remote_paths):
         children = []
