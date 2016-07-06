@@ -77,7 +77,7 @@ class DownloadController(object):
 
     def multiple_download_later(self, *remote_paths):
         self._ensure_alive()
-        task = Task(functools.partial(self._download_from, *remote_paths))
+        task = functools.partial(self._download_from, *remote_paths)
         self._worker.do_later(task)
 
     def _ensure_alive(self):
