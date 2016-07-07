@@ -130,6 +130,33 @@ class DownloadController(object):
         mtime = datetime_to_timestamp(node.modified)
         return mtime <= self._last_recycle
 
+    def _reserve_space(self, node):
+        entries = None
+        while self._need_recycle(node):
+            if not entries:
+                entries = self.common.get_cache_entries()
+            full_path, mtime = entries.pop(0)
+            if op.isdir(full_path):
+                shutil.rmtree(full_path)
+            else:
+                os.remove(full_path)
+            self._last_recycle = mtime
+            INFO('acddl') << 'recycled:' << full_path
+
+    def _need_recycle(self, node):
+        free_space = self._get_free_space()
+        required_space = self._get_node_size(node)
+        gb_free_space = free_space / 1024 / 1024 / 1024
+        gb_required_space = required_space / 1024 / 1024 / 1024
+        INFO('acddl') << 'free space: {0} GB, required: {1} GB'.format(gb_free_space, gb_required_space)
+        return free_space <= required_space
+
+    # in bytes
+    def _get_free_space(self):
+        s = os.statvfs(str(self._context.root))
+        s = s.f_frsize * s.f_bavail
+        return s
+
     async def _download(self, node, local_path, need_mtime):
         local_path = local_path if local_path else ''
         full_path = op.join(local_path, node.name)
