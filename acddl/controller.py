@@ -130,9 +130,9 @@ class DownloadController(object):
         mtime = datetime_to_timestamp(node.modified)
         return mtime <= self._last_recycle
 
-    def _reserve_space(self, node):
+    async def _reserve_space(self, node):
         entries = None
-        while self._need_recycle(node):
+        while await self._need_recycle(node):
             if not entries:
                 entries = self.common.get_cache_entries()
             full_path, mtime = entries.pop(0)
@@ -143,9 +143,9 @@ class DownloadController(object):
             self._last_recycle = mtime
             INFO('acddl') << 'recycled:' << full_path
 
-    def _need_recycle(self, node):
+    async def _need_recycle(self, node):
         free_space = self._get_free_space()
-        required_space = self._get_node_size(node)
+        required_space = await self._get_node_size(node)
         gb_free_space = free_space / 1024 / 1024 / 1024
         gb_required_space = required_space / 1024 / 1024 / 1024
         INFO('acddl') << 'free space: {0} GB, required: {1} GB'.format(gb_free_space, gb_required_space)
@@ -156,6 +156,20 @@ class DownloadController(object):
         s = os.statvfs(str(self._context.root))
         s = s.f_frsize * s.f_bavail
         return s
+
+    # in bytes
+    async def _get_node_size(self, node):
+        if not node.is_available:
+            return 0
+
+        if not node.is_folder:
+            return node.size
+
+        children = await self._context.acd_db.get_children(node)
+        sum_ = 0
+        for child in children:
+            sum_ += await self._get_node_size(child)
+        return sum_
 
     async def _download(self, node, local_path, need_mtime):
         local_path = local_path if local_path else ''
@@ -206,7 +220,7 @@ class DownloadController(object):
             INFO('acddl') << 'md5 mismatch'
             os.remove(full_path)
 
-        self._reserve_space(node)
+        await self._reserve_space(node)
 
         # retry until succeed
         while True:

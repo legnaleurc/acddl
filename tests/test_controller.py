@@ -45,19 +45,27 @@ class TestDownloadController(unittest.TestCase):
         u.async_call(dc._download_from, '/tmp')
         assert dc._worker.do_later.call_count == 2
 
+    @um.patch('os.statvfs')
     @um.patch('acddl.worker.AsyncWorker', autospec=True)
-    @unittest.skip('need refactor')
-    def testDownload(self, FakeAsyncWorker):
+    # @unittest.skip('need refactor')
+    def testDownload(self, FakeAsyncWorker, fake_statvfs):
         context = um.Mock()
+        # mock acd_client
+        context.acd_client.download_node = u.AsyncMock(return_value='remote_md5')
         # mock acd_db
         # context.acd_db.sync = u.AsyncMock()
-        # context.acd_db.resolve_path = u.AsyncMock()
         context.acd_db.get_children = u.AsyncMock(return_value=[
             NodeMock(REMOTE_TREE_1['children'][0]),
             NodeMock(REMOTE_TREE_1['children'][1]),
         ])
+        context.acd_db.get_path = u.AsyncMock(return_value='/tmp/test')
         # mock root
         # context.root = PathMock(FS_1)
+        # mock os
+        vfs = um.Mock()
+        fake_statvfs.return_value = vfs
+        vfs.f_frsize = 1
+        vfs.f_bavail = 10 * 1024 ** 3
 
         dc = ctrl.DownloadController(context)
         u.async_call(dc._download, NodeMock(REMOTE_TREE_1), '/tmp', True)
@@ -104,6 +112,14 @@ class NodeMock(um.Mock):
     def is_folder(self):
         return 'children' in self._tree
 
+    @property
+    def size(self):
+        return self._tree['size']
+
+    @property
+    def md5(self):
+        return self._tree['md5']
+
 
 LOCAL_TREE_1 = {
     'name': '/',
@@ -133,12 +149,14 @@ REMOTE_TREE_1 = {
             'mtime': 1467808000,
             'size': 100,
             'is_available': True,
+            'md5': 'local_a',
         },
         {
             'name': 'b.txt',
             'mtime': 1467807000,
             'size': 200,
             'is_available': False,
+            'md5': 'local_b',
         },
     ],
 }
