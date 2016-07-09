@@ -20,13 +20,13 @@ class PathMock(utm.Mock):
         self._path = self._fs.JoinPaths(*pathsegments)
 
     def iterdir(self):
-        for child in self._tree['children']:
-            yield PathMock(child)
+        fake_os = ffs.FakeOsModule(self._fs)
+        for child in fake_os.listdir(self._path):
+            yield PathMock(self._fs, self._path, child)
 
     def stat(self):
-        m = um.Mock()
-        m.st_mtime = self._tree['mtime']
-        return m
+        fake_os = ffs.FakeOsModule(self._fs)
+        return fake_os.stat(self._path)
 
     def mkdir(self, mode=0o777, parents=False, exist_ok=False):
         fake_os = ffs.FakeOsModule(self._fs)
@@ -46,7 +46,7 @@ class PathMock(utm.Mock):
         return fake_os.unlink(self._path)
 
     def __truediv__(self, name):
-        return PathMock(self._fs, self._fs.JoinPaths(self._path, name))
+        return PathMock(self._fs, self._path, name)
 
     def __str__(self):
         return self._path
@@ -103,23 +103,24 @@ class TestDownloadController(ut.TestCase):
 
     @utm.patch('acddl.worker.AsyncWorker', autospec=True)
     def testDownloadLater(self, FakeAsyncWorker):
-        context = um.Mock()
+        context = utm.Mock()
         dc = ctrl.DownloadController(context)
-        node = um.Mock()
+        node = utm.Mock()
         dc.download_later(node)
         dc._worker.start.assert_called_once_with()
-        dc._worker.do_later.assert_called_once_with(um.ANY)
+        dc._worker.do_later.assert_called_once_with(utm.ANY)
 
     @utm.patch('acddl.worker.AsyncWorker', autospec=True)
     def testMultipleDownloadLater(self, FakeAsyncWorker):
-        context = um.Mock()
+        context = utm.Mock()
         dc = ctrl.DownloadController(context)
         dc.multiple_download_later('123', '456')
         dc._worker.start.assert_called_once_with()
-        dc._worker.do_later.assert_called_once_with(um.ANY)
+        dc._worker.do_later.assert_called_once_with(utm.ANY)
 
+    @utm.patch('pathlib.Path', new_callable=functools.partial(create_pathmock, fs=create_fake_file_system()))
     @utm.patch('acddl.worker.AsyncWorker', autospec=True)
-    def testDownloadFrom(self, FakeAsyncWorker):
+    def testDownloadFrom(self, FakeAsyncWorker, FakePath):
         context = utm.Mock()
         # mock acd_db
         context.acd_db.sync = u.AsyncMock()
@@ -129,7 +130,7 @@ class TestDownloadController(ut.TestCase):
             NodeMock(REMOTE_TREE_1),
         ])
         # mock root
-        context.root = '/local'
+        context.root = pathlib.Path('/local')
 
         dc = ctrl.DownloadController(context)
         u.async_call(dc._download_from, '/remote')
@@ -160,7 +161,6 @@ class TestDownloadController(ut.TestCase):
 
         dc = ctrl.DownloadController(context)
         u.async_call(dc._download, NodeMock(REMOTE_TREE_1), context.root, True)
-        # assert dc._worker.do_later.call_count == 2
 
 
 LOCAL_TREE_1 = {
