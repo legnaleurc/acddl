@@ -139,7 +139,7 @@ class DownloadController(object):
             if op.isdir(full_path):
                 shutil.rmtree(full_path)
             else:
-                os.remove(full_path)
+                full_path.unlink()
             self._last_recycle = mtime
             INFO('acddl') << 'recycled:' << full_path
 
@@ -172,8 +172,8 @@ class DownloadController(object):
         return sum_
 
     async def _download(self, node, local_path, need_mtime):
-        local_path = local_path if local_path else ''
-        full_path = op.join(local_path, node.name)
+        local_path = local_path if local_path else pathlib.Path()
+        full_path = local_path / node.name
 
         if not node.is_available:
             return False
@@ -196,7 +196,7 @@ class DownloadController(object):
 
     async def _download_folder(self, node, full_path, need_mtime):
         try:
-            os.makedirs(full_path, exist_ok=True)
+            full_path.mkdir(parents=True, exist_ok=True)
         except OSError:
             WARNING('acddl') << 'mkdir failed:' << full_path
             return False
@@ -210,7 +210,7 @@ class DownloadController(object):
         return True
 
     async def _download_file(self, node, local_path, full_path):
-        if op.isfile(full_path):
+        if full_path.is_file():
             INFO('acddl') << 'checking existed:' << full_path
             local = md5sum(full_path)
             remote = node.md5
@@ -218,7 +218,7 @@ class DownloadController(object):
                 INFO('acddl') << 'skip same file'
                 return True
             INFO('acddl') << 'md5 mismatch'
-            os.remove(full_path)
+            full_path.unlink()
 
         await self._reserve_space(node)
 
@@ -241,7 +241,7 @@ class DownloadController(object):
                 remote_hash = node.md5
                 if local_hash != remote_hash:
                     INFO('acddl') << 'md5 mismatch:' << full_path
-                    os.remove(full_path)
+                    full_path.unlink()
                 else:
                     break
 
@@ -714,7 +714,7 @@ class DownloadTaskDescriptor(object):
 
 def md5sum(full_path):
     hasher = hashlib.md5()
-    with open(full_path, 'rb') as fin:
+    with full_path.open('rb') as fin:
         while True:
             chunk = fin.read(65536)
             if not chunk:
@@ -730,7 +730,7 @@ def preserve_mtime_by_node(full_path, node):
 
 def update_mtime(full_path, s_mtime):
     try:
-        os.utime(full_path, (s_mtime, s_mtime))
+        os.utime(str(full_path), (s_mtime, s_mtime))
     except OSError as e:
         # file name too long
         if e.errno != 36:
