@@ -307,6 +307,45 @@ class ACDClientController(object):
         return hasher.get_result()
 
 
+class ACDDBController(object):
+
+    def __init__(self, context):
+        self._context = context
+        self._worker = worker.AsyncWorker()
+        self._acd_db = None
+
+    def close(self):
+        self._worker.stop()
+        self._acd_db = None
+
+    async def sync(self):
+        await self._ensure_alive()
+
+    async def resolve_path(self, remote_path):
+        await self._ensure_alive()
+        return await self._worker.do(functools.partial(self._acd_db.resolve, node))
+
+    async def get_children(self, node):
+        await self._ensure_alive()
+        folders, files = await self._worker.do(functools.partial(self._acd_db.list_children, node.id))
+        children = folders + files
+        return children
+
+    async def get_path(self, node):
+        await self._ensure_alive()
+        dirname = await self._worker.do(functools.partial(self._acd_db.first_path, node.id))
+        return dirname + node.name
+
+    async def _ensure_alive(self):
+        if not self._acd_db:
+            self._worker.start()
+            await self._worker.do(self._create_db)
+
+    def _create_db(self):
+        auth_folder = op.expanduser('~/.cache/acd_cli')
+        self._acd_db = DB.NodeCache(auth_folder)
+
+
 '''
 
 
