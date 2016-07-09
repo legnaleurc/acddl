@@ -408,6 +408,10 @@ class ACDDBController(object):
     async def get_node(self, node_id):
         return await self._worker.do(functools.partial(self._acd_db.get_node, node_id))
 
+    async def find_by_regex(self, pattern):
+        await self._ensure_alive()
+        return await self._worker.do(functools.partial(self._acd_db.find_by_regex, pattern))
+
     async def _ensure_alive(self):
         if not self._acd_db:
             self._worker.start()
