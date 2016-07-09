@@ -1,6 +1,6 @@
 import functools
-import unittest
-from unittest import mock as um
+import unittest as ut
+from unittest import mock as utm
 
 from tornado import ioloop as ti, gen as tg
 
@@ -8,7 +8,7 @@ from acddl import worker
 from . import util as u
 
 
-class TestWorker(unittest.TestCase):
+class TestWorker(ut.TestCase):
 
     def setUp(self):
         self._worker = worker.Worker()
@@ -29,7 +29,7 @@ class TestWorker(unittest.TestCase):
         self.assertEqual(x[0], 2)
 
 
-class TestAsyncWorker(unittest.TestCase):
+class TestAsyncWorker(ut.TestCase):
 
     def setUp(self):
         self._worker = worker.AsyncWorker()
@@ -40,9 +40,9 @@ class TestAsyncWorker(unittest.TestCase):
         u.async_call(self._worker.stop)
         self.assertFalse(self._worker.is_alive)
 
-    @um.patch('tornado.ioloop.IOLoop', autospec=True)
-    @um.patch('threading.Condition', autospec=True)
-    @um.patch('threading.Thread', autospec=True)
+    @utm.patch('tornado.ioloop.IOLoop', autospec=True)
+    @utm.patch('threading.Condition', autospec=True)
+    @utm.patch('threading.Thread', autospec=True)
     def testStartTwice(self, FakeThread, FakeCondition, FakeIOLoop):
         w = worker.AsyncWorker()
         w.start()
@@ -52,9 +52,9 @@ class TestAsyncWorker(unittest.TestCase):
         w._thread.start.assert_called_once_with()
         self.assertEqual(the_loop, w._loop)
 
-    @um.patch('tornado.ioloop.IOLoop', autospec=True)
-    @um.patch('threading.Condition', autospec=True)
-    @um.patch('threading.Thread', autospec=True)
+    @utm.patch('tornado.ioloop.IOLoop', autospec=True)
+    @utm.patch('threading.Condition', autospec=True)
+    @utm.patch('threading.Thread', autospec=True)
     def testStopTwice(self, FakeThread, FakeCondition, FakeIOLoop):
         w = worker.AsyncWorker()
         w.start()
@@ -116,7 +116,7 @@ class TestAsyncWorker(unittest.TestCase):
         fn.assert_awaited()
 
     def _createSyncMock(self):
-        return um.Mock(return_value=42)
+        return utm.Mock(return_value=42)
 
     def _createAsyncMock(self):
         return u.AsyncMock(return_value=42)

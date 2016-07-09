@@ -145,7 +145,6 @@ class TestDownloadController(ut.TestCase):
         # mock acd_client
         context.acd_client.download_node = u.AsyncMock(return_value='remote_md5')
         # mock acd_db
-        # context.acd_db.sync = u.AsyncMock()
         context.acd_db.get_children = u.AsyncMock(return_value=[
             NodeMock(REMOTE_TREE_1['children'][0]),
             NodeMock(REMOTE_TREE_1['children'][1]),
