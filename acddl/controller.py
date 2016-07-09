@@ -309,6 +309,10 @@ class ACDClientController(object):
 
 class ACDDBController(object):
 
+    _CHECKPOINT_KEY = 'checkpoint'
+    _LAST_SYNC_KEY = 'last_sync'
+    _MAX_AGE = 30
+
     def __init__(self, context):
         self._context = context
         self._worker = worker.AsyncWorker()
@@ -320,6 +324,42 @@ class ACDDBController(object):
 
     async def sync(self):
         await self._ensure_alive()
+
+        # copied from acd_cli
+
+        check_point = self._acd_db.KeyValueStorage.get(self._CHECKPOINT_KEY)
+
+        f = await self._context.acd_client.get_changes(checkpoint=check_point, include_purged=bool(check_point), silent=False, file=None)
+
+        try:
+            full = False
+            first = True
+
+            for changeset in self._context.acd_client._iter_changes_lines(f):
+                if changeset.reset or (full and first):
+                    await self._worker.do(self._acd_db.drop_all)
+                    await self._worker.do(self._acd_db.init)
+                    full = True
+                else:
+                    await self._worker.do(functools.partial(self._acd_db.remove_purged, changeset.purged_nodes))
+
+                if changeset.nodes:
+                    await self._worker.do(functools.partial(self._acd_db.insert_nodes, changeset.nodes, partial=not full))
+                self._acd_db.KeyValueStorage.update({
+                    self._LAST_SYNC_KEY: time.time(),
+                })
+
+                if changeset.nodes or changeset.purged_nodes:
+                    self._acd_db.KeyValueStorage.update({
+                        self._CHECKPOINT_KEY: changeset.checkpoint,
+                    })
+
+                first = False
+        except RequestError as e:
+            EXCEPTION('acddl') << str(e)
+            return False
+
+        return True
 
     async def resolve_path(self, remote_path):
         await self._ensure_alive()
