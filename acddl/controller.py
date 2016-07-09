@@ -275,20 +275,23 @@ class DownloadTask(worker.Task):
         return self._node == that._node
 
 
-'''
-class ACDClientWorker(object):
+class ACDClientController(object):
 
     def __init__(self, context):
         self._context = context
         self._worker = worker.AsyncWorker()
         self._acd_client = None
 
-    async def download(self, node, local_path):
+    def close(self):
+        self._worker.stop()
+        self._acd_client = None
+
+    async def download_node(self, node, local_path):
         await self._ensure_alive()
         return await self._worker.do(functools.partial(self._download, node, local_path))
 
     async def _ensure_alive(self):
-        if not self._worker.is_alive:
+        if not self._acd_client:
             self._worker.start()
             await self._worker.do(self._create_client)
 
@@ -298,10 +301,13 @@ class ACDClientWorker(object):
 
     def _download(self, node, local_path):
         hasher = hashing.IncrementalHasher()
-        self._acd_client.download_file(node.id, node.name, local_path, write_callbacks=[
+        self._acd_client.download_file(node.id, node.name, str(local_path), write_callbacks=[
             hasher.update,
         ])
         return hasher.get_result()
+
+
+'''
 
 
 class DownloadThread(threading.Thread):
