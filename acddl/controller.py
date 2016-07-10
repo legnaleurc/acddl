@@ -326,8 +326,7 @@ class ACDClientController(object):
             await self._worker.do(self._create_client)
 
     def _create_client(self):
-        auth_folder = op.expanduser('~/.cache/acd_cli')
-        self._acd_client = ACD.ACDClient(auth_folder)
+        self._acd_client = ACD.ACDClient(self._context.auth_path)
 
     def _download(self, node, local_path):
         hasher = hashing.IncrementalHasher()
@@ -415,8 +414,7 @@ class ACDDBController(object):
             await self._worker.do(self._create_db)
 
     def _create_db(self):
-        auth_folder = op.expanduser('~/.cache/acd_cli')
-        self._acd_db = DB.NodeCache(auth_folder)
+        self._acd_db = DB.NodeCache(self._context.auth_path)
 
 
 '''

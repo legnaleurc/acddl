@@ -123,9 +123,9 @@ class TestDownloadController(ut.TestCase):
     def testDownloadFrom(self, FakeAsyncWorker, FakePath):
         context = utm.Mock()
         # mock acd_db
-        context.acd_db.sync = u.AsyncMock()
-        context.acd_db.resolve_path = u.AsyncMock()
-        context.acd_db.get_children = u.AsyncMock(return_value=[
+        context.db.sync = u.AsyncMock()
+        context.db.resolve_path = u.AsyncMock()
+        context.db.get_children = u.AsyncMock(return_value=[
             NodeMock(REMOTE_TREE_1),
             NodeMock(REMOTE_TREE_1),
         ])
@@ -142,14 +142,14 @@ class TestDownloadController(ut.TestCase):
     @utm.patch('acddl.worker.AsyncWorker', autospec=True)
     def testDownload(self, FakeAsyncWorker, FakePath, fake_statvfs, fake_utime):
         context = utm.Mock()
-        # mock acd_client
-        context.acd_client.download_node = u.AsyncMock(return_value='remote_md5')
-        # mock acd_db
-        context.acd_db.get_children = u.AsyncMock(return_value=[
+        # mock client
+        context.client.download_node = u.AsyncMock(return_value='remote_md5')
+        # mock db
+        context.db.get_children = u.AsyncMock(return_value=[
             NodeMock(REMOTE_TREE_1['children'][0]),
             NodeMock(REMOTE_TREE_1['children'][1]),
         ])
-        context.acd_db.get_path = u.AsyncMock(return_value='/remote/test')
+        context.db.get_path = u.AsyncMock(return_value='/remote/test')
         # mock root
         context.root = pathlib.Path('/local')
         # mock os
@@ -160,6 +160,7 @@ class TestDownloadController(ut.TestCase):
 
         dc = ctrl.DownloadController(context)
         u.async_call(dc._download, NodeMock(REMOTE_TREE_1), context.root, True)
+        assert context.client.download_node.call_count == 2
 
 
 LOCAL_TREE_1 = {
