@@ -3,6 +3,7 @@ import unittest as ut
 from unittest import mock as utm
 import datetime as dt
 import pathlib
+import hashlib
 
 from tornado import ioloop as ti, gen as tg
 from pyfakefs import fake_filesystem as ffs
@@ -54,49 +55,82 @@ class PathMock(utm.Mock):
 
 class NodeMock(utm.Mock):
 
-    def __init__(self, tree=None, *args, **kwargs):
+    def __init__(self, fs, path, *args, **kwargs):
         super(NodeMock, self).__init__()
 
-        self._tree = tree
+        self._fs = fs
+        self._path = path
 
     @property
     def name(self):
-        return self._tree['name']
+        dirname, basename = self._fs.SplitPath(self._path)
+        return basename
 
     @property
     def modified(self):
-        return dt.datetime.fromtimestamp(self._tree['mtime'])
+        f = self._fs.GetObject(self._path)
+        return dt.datetime.fromtimestamp(f.st_mtime)
 
     @property
     def is_available(self):
-        return self._tree['is_available']
+        return True
 
     @property
     def is_folder(self):
-        return 'children' in self._tree
+        fake_os = ffs.FakeOsModule(self._fs)
+        return fake_os.path.isdir(self._path)
 
     @property
     def size(self):
-        return self._tree['size']
+        fake_os = ffs.FakeOsModule(self._fs)
+        return fake_os.path.getsize(self._path)
 
     @property
     def md5(self):
-        return self._tree['md5']
+        fake_open = ffs.FakeFileOpen(self._fs)
+        hasher = hashlib.md5()
+        with fake_open(self._path, 'rb') as fin:
+            while True:
+                chunk = fin.read(65536)
+                if not chunk:
+                    break
+                hasher.update(chunk)
+        return hasher.hexdigest()
+
+    @property
+    def _children(self):
+        fake_os = ffs.FakeOsModule(self._fs)
+        children = fake_os.listdir(self._path)
+        children = [NodeMock(self._fs, self._fs.JoinPaths(self._path, _)) for _ in children]
+        folders = [_ for _ in children if _.is_folder]
+        files = [_ for _ in children if not _.is_folder]
+        return (folders, files)
 
 
-def create_fake_file_system():
+def create_fake_local_file_system():
     fs = ffs.FakeFilesystem()
-    file_1 = fs.CreateFile('/local/file_1.txt', st_size=100)
+    file_1 = fs.CreateFile('/local/file_1.txt', contents='file 1')
     file_1.st_mtime = 1467808000
-    file_2 = fs.CreateFile('/local/folder_1/file_2.txt', st_size=200)
+    file_2 = fs.CreateFile('/local/folder_1/file_2.txt', contents='file 2')
     file_2.st_mtime = 1467807000
     folder_1 = fs.GetObject('/local/folder_1')
     folder_1.st_mtime = 1467809000
     return fs
 
 
-def create_pathmock(fs, *args, **kwargs):
-    return lambda *args, **kwargs: PathMock(fs, *args, **kwargs)
+def create_fake_remote_file_system():
+    fs = ffs.FakeFilesystem()
+    file_3 = fs.CreateFile('/remote/file_3.txt', contents='file 3')
+    file_3.st_mtime = 1467806000
+    file_4 = fs.CreateFile('/remote/folder_2/file_4.txt', contents='file 4')
+    file_4.st_mtime = 1467805000
+    folder_2 = fs.GetObject('/remote/folder_2')
+    folder_2.st_mtime = 1467804000
+    return fs
+
+
+metapathmock = lambda *args, **kwargs: functools.partial(PathMock, create_fake_local_file_system())
+create_nodemock = functools.partial(lambda fs, *args, **kwargs: NodeMock(fs, *args, **kwargs), fs=create_fake_remote_file_system())
 
 
 class TestDownloadController(ut.TestCase):
@@ -118,17 +152,14 @@ class TestDownloadController(ut.TestCase):
         dc._worker.start.assert_called_once_with()
         dc._worker.do_later.assert_called_once_with(utm.ANY)
 
-    @utm.patch('pathlib.Path', new_callable=functools.partial(create_pathmock, fs=create_fake_file_system()))
+    @utm.patch('pathlib.Path', new_callable=metapathmock)
     @utm.patch('acddl.worker.AsyncWorker', autospec=True)
     def testDownloadFrom(self, FakeAsyncWorker, FakePath):
         context = utm.Mock()
         # mock acd_db
         context.db.sync = u.AsyncMock()
-        context.db.resolve_path = u.AsyncMock()
-        context.db.get_children = u.AsyncMock(return_value=[
-            NodeMock(REMOTE_TREE_1),
-            NodeMock(REMOTE_TREE_1),
-        ])
+        context.db.resolve_path = fake_resolve_path
+        context.db.get_children = fake_get_children
         # mock root
         context.root = pathlib.Path('/local')
 
@@ -138,18 +169,15 @@ class TestDownloadController(ut.TestCase):
 
     @utm.patch('os.utime')
     @utm.patch('os.statvfs')
-    @utm.patch('pathlib.Path', new_callable=functools.partial(create_pathmock, fs=create_fake_file_system()))
+    @utm.patch('pathlib.Path', new_callable=metapathmock)
     @utm.patch('acddl.worker.AsyncWorker', autospec=True)
     def testDownload(self, FakeAsyncWorker, FakePath, fake_statvfs, fake_utime):
         context = utm.Mock()
         # mock client
-        context.client.download_node = u.AsyncMock(return_value='remote_md5')
+        context.client.download_node = fake_download_node
         # mock db
-        context.db.get_children = u.AsyncMock(return_value=[
-            NodeMock(REMOTE_TREE_1['children'][0]),
-            NodeMock(REMOTE_TREE_1['children'][1]),
-        ])
-        context.db.get_path = u.AsyncMock(return_value='/remote/test')
+        context.db.get_children = fake_get_children
+        context.db.get_path = fake_get_path
         # mock root
         context.root = pathlib.Path('/local')
         # mock os
@@ -163,42 +191,15 @@ class TestDownloadController(ut.TestCase):
         assert context.client.download_node.call_count == 2
 
 
-LOCAL_TREE_1 = {
-    'name': '/',
-    'mtime': 1467809000,
-    'children': [
-        {
-            'name': 'a.txt',
-            'mtime': 1467808000,
-            'size': 100,
-        },
-        {
-            'name': 'b.txt',
-            'mtime': 1467807000,
-            'size': 200,
-        },
-    ],
-}
+async def fake_resolve_path(remote_path):
+    return
+    raise NotImplementedError()
 
+async def fake_get_children(node):
+    raise NotImplementedError()
 
-REMOTE_TREE_1 = {
-    'name': '/',
-    'mtime': 1467809000,
-    'is_available': True,
-    'children': [
-        {
-            'name': 'a.txt',
-            'mtime': 1467808000,
-            'size': 100,
-            'is_available': True,
-            'md5': 'remote_md5',
-        },
-        {
-            'name': 'b.txt',
-            'mtime': 1467807000,
-            'size': 200,
-            'is_available': False,
-            'md5': 'remote_md5',
-        },
-    ],
-}
+async def fake_get_path(node):
+    raise NotImplementedError()
+
+async def fake_download_node(node):
+    raise NotImplementedError()
