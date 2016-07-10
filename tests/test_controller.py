@@ -190,7 +190,10 @@ class TestDownloadController(ut.TestCase):
 
             dc = ctrl.DownloadController(context)
             u.async_call(dc._download, NodeMock(rfs, '/remote/folder_2'), context.root, True)
-            # assert context.client.download_node.call_count == 2
+
+            l_fake_os = ffs.FakeOsModule(lfs)
+            assert l_fake_os.path.isdir('/local/folder_2')
+            assert l_fake_os.path.isfile('/local/folder_2/file_4.txt')
 
 
 async def fake_resolve_path(fs, remote_path):
