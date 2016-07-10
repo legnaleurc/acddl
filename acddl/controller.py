@@ -141,7 +141,6 @@ class DownloadController(object):
     def _get_cache_entries(self):
         # get first level children
         entries = self._context.root.iterdir()
-        #entries = (op.join(self._context.root_folder, _) for _ in entries)
         # generate (path, mtime) pair
         entries = ((_, _.stat().st_mtime) for _ in entries)
         entries = sorted(entries, key=lambda _: _[1])
