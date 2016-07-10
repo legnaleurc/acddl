@@ -80,13 +80,13 @@ class TestAsyncWorker(ut.TestCase):
     def testDoLaterWithSync(self):
         fn = self._createSyncMock()
         self._worker.do_later(fn)
-        u.async_call(functools.partial(tg.sleep, 0.001))
+        u.async_call(functools.partial(tg.sleep, 0.01))
         fn.assert_called_once_with()
 
     def testDoLaterWithAsync(self):
         fn = self._createAsyncMock()
         self._worker.do_later(fn)
-        u.async_call(functools.partial(tg.sleep, 0.001))
+        u.async_call(functools.partial(tg.sleep, 0.01))
         fn.assert_called_once_with()
 
     def testDoWithSyncPartial(self):
@@ -105,13 +105,13 @@ class TestAsyncWorker(ut.TestCase):
     def testDoLaterWithSyncPartial(self):
         fn = self._createSyncMock()
         self._worker.do_later(functools.partial(fn, 1, k=7))
-        u.async_call(functools.partial(tg.sleep, 0.001))
+        u.async_call(functools.partial(tg.sleep, 0.01))
         fn.assert_called_once_with(1, k=7)
 
     def testDoLaterWithAsyncPartial(self):
         fn = self._createAsyncMock()
         self._worker.do_later(functools.partial(fn, 1, k=7))
-        u.async_call(functools.partial(tg.sleep, 0.001))
+        u.async_call(functools.partial(tg.sleep, 0.01))
         fn.assert_called_once_with(1, k=7)
         fn.assert_awaited()
 
