@@ -290,6 +290,12 @@ class ACDClientController(object):
         await self._ensure_alive()
         return await self._worker.do(functools.partial(self._download, node, local_path))
 
+    async def get_changes(self, checkpoint, include_purged):
+        return await self._worker.do(functools.partial(self._acd_client.get_changes, checkpoint=checkpoint, include_purged=include_purged, silent=False, file=None))
+
+    def iter_changes_lines(self, changes):
+        return self._acd_client._iter_changes_lines(changes)
+
     async def _ensure_alive(self):
         if not self._acd_client:
             self._worker.start()
@@ -329,13 +335,13 @@ class ACDDBController(object):
 
         check_point = self._acd_db.KeyValueStorage.get(self._CHECKPOINT_KEY)
 
-        f = await self._context.acd_client.get_changes(checkpoint=check_point, include_purged=bool(check_point), silent=False, file=None)
+        f = await self._context.acd_client.get_changes(checkpoint=check_point, include_purged=bool(check_point))
 
         try:
             full = False
             first = True
 
-            for changeset in self._context.acd_client._iter_changes_lines(f):
+            for changeset in self._context.acd_client.iter_changes_lines(f):
                 if changeset.reset or (full and first):
                     await self._worker.do(self._acd_db.drop_all)
                     await self._worker.do(self._acd_db.init)
