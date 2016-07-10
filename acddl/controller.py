@@ -27,6 +27,7 @@ class Context(object):
 
     def __init__(self, root_path):
         self._root = pathlib.Path(root_path)
+        self._auth_path = op.expanduser('~/.cache/acd_cli')
         self._dl = DownloadController(self)
         self._db = ACDDBController(self)
         self._client = ACDClientController(self)
@@ -38,6 +39,10 @@ class Context(object):
     @property
     def root(self):
         return self._root
+
+    @property
+    def auth_path(self):
+        return self._auth_path
 
     @property
     def dl(self):
@@ -110,7 +115,7 @@ class DownloadController(object):
         self._worker.start()
 
     async def _download_from(self, *remote_paths):
-        await self._context.acd_db.sync()
+        await self._context.db.sync()
         children = await self._get_unified_children(remote_paths)
         mtime = self._get_oldest_mtime()
         children = filter(lambda _: _.modified > mtime, children)
@@ -124,8 +129,8 @@ class DownloadController(object):
     async def _get_unified_children(self, remote_paths):
         children = []
         for remote_path in remote_paths:
-            folder = await self._context.acd_db.resolve_path(remote_path)
-            tmp = await self._context.acd_db.get_children(folder)
+            folder = await self._context.db.resolve_path(remote_path)
+            tmp = await self._context.db.get_children(folder)
             children.extend(tmp)
         children = sorted(children, key=lambda _: _.modified, reverse=True)
         return children
@@ -185,7 +190,7 @@ class DownloadController(object):
         if not node.is_folder:
             return node.size
 
-        children = await self._context.acd_db.get_children(node)
+        children = await self._context.db.get_children(node)
         children = (self._get_node_size(_) for _ in children)
         children = await tg.multi(children)
         return sum(children)
@@ -220,7 +225,7 @@ class DownloadController(object):
             WARNING('acddl') << 'mkdir failed:' << full_path
             return False
 
-        children = await self._context.acd_db.get_children(node)
+        children = await self._context.db.get_children(node)
         for child in children:
             ok = await self._download(child, full_path, need_mtime)
             if not ok:
@@ -244,9 +249,9 @@ class DownloadController(object):
         # retry until succeed
         while True:
             try:
-                remote_path = await self._context.acd_db.get_path(node)
+                remote_path = await self._context.db.get_path(node)
                 INFO('acddl') << 'downloading:' << remote_path
-                local_hash = await self._context.acd_client.download_node(node, local_path)
+                local_hash = await self._context.client.download_node(node, local_path)
                 INFO('acddl') << 'downloaded'
             except RequestError as e:
                 ERROR('acddl') << 'download failed:' << str(e)
@@ -354,13 +359,13 @@ class ACDDBController(object):
 
         check_point = self._acd_db.KeyValueStorage.get(self._CHECKPOINT_KEY)
 
-        f = await self._context.acd_client.get_changes(checkpoint=check_point, include_purged=bool(check_point))
+        f = await self._context.client.get_changes(checkpoint=check_point, include_purged=bool(check_point))
 
         try:
             full = False
             first = True
 
-            for changeset in self._context.acd_client.iter_changes_lines(f):
+            for changeset in self._context.client.iter_changes_lines(f):
                 if changeset.reset or (full and first):
                     await self._worker.do(self._acd_db.drop_all)
                     await self._worker.do(self._acd_db.init)
