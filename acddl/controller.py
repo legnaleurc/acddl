@@ -17,42 +17,65 @@ from acdcli.api.common import RequestError
 from acdcli.cache import db as DB
 from acdcli.utils import hashing
 from acdcli.utils.time import datetime_to_timestamp
-from tornado import ioloop
+from tornado import ioloop as ti, gen as tg
 
 from .log import ERROR, WARNING, INFO, EXCEPTION
 from . import worker
 
 
-'''
+class Context(object):
 
-class Controller(object):
+    def __init__(self, root_path):
+        self._root = pathlib.Path(root_path)
+        self._dl = DownloadController(self)
+        self._db = ACDDBController(self)
+        self._client = ACDClientController(self)
+
+    def close(self):
+        for ctrl in (self._dl, self._db, self._client):
+            ctrl.close()
+
+    @property
+    def root(self):
+        return self._root
+
+    @property
+    def dl(self):
+        return self._dl
+
+    @property
+    def db(self):
+        return self._db
+
+    @property
+    def client(self):
+        return self._client
+
+
+class RootController(object):
 
     def __init__(self, cache_folder):
-        self._common_context = CommonContext(cache_folder)
-        self._download_context = DownloadContext(self._common_context)
-        self._update_context = UpdateContext(self._common_context, self._download_context)
+        self._context = Context(cache_folder)
 
-    def stop(self, signum, frame):
-        self._update_context.end_queue()
-        self._download_context.end_queue()
+    def close(self, signum, frame):
+        self._context.close()
         main_loop = ioloop.IOLoop.instance()
         main_loop.stop()
 
-    def search(self, pattern):
+    async def search(self, pattern):
         real_pattern = re.sub(r'(\s|-)+', '.*', pattern)
         real_pattern = '.*{0}.*'.format(real_pattern)
-        nodes = self._common_context.find_by_regex(real_pattern)
-        nodes = {_.id: self._common_context.get_path(_) for _ in nodes if _.is_available}
+        nodes = await self._context.db.find_by_regex(real_pattern)
+        nodes = {_.id: self._context.db.get_path(_) for _ in nodes if _.is_available}
+        nodes = await tg.multi(nodes)
         return nodes
 
-    def download(self, node_id):
-        node = self._common_context.get_node(node_id)
-        if node:
-            dtd = DownloadTaskDescriptor.create_no_mtime(node)
-            self._download_context.push_queue(dtd)
+    async def download(self, node_id):
+        node = await self._context.db.get_node(node_id)
+        self._context.client.download_later(node)
 
-    def update_cache_from(self, acd_paths):
-        self._update_context.push_queue(acd_paths)
+    def update_cache_from(self, remote_paths):
+        self._context.client.multiple_download_later(*remote_paths)
 
     def compare(self, node_ids):
         nodes = [self._common_context.get_node(_) for _ in node_ids]
@@ -61,8 +84,6 @@ class Controller(object):
             return True
         else:
             return [_.size for _ in nodes]
-
-'''
 
 
 class DownloadController(object):
@@ -166,10 +187,9 @@ class DownloadController(object):
             return node.size
 
         children = await self._context.acd_db.get_children(node)
-        sum_ = 0
-        for child in children:
-            sum_ += await self._get_node_size(child)
-        return sum_
+        children = (self._get_node_size(_) for _ in children)
+        children = await tg.multi(children)
+        return sum(children)
 
     async def _download(self, node, local_path, need_mtime):
         local_path = local_path if local_path else pathlib.Path()
@@ -381,6 +401,9 @@ class ACDDBController(object):
         await self._ensure_alive()
         dirname = await self._worker.do(functools.partial(self._acd_db.first_path, node.id))
         return dirname + node.name
+
+    async def get_node(self, node_id):
+        return await self._worker.do(functools.partial(self._acd_db.get_node, node_id))
 
     async def _ensure_alive(self):
         if not self._acd_db:
