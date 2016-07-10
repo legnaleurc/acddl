@@ -169,26 +169,28 @@ class TestDownloadController(ut.TestCase):
 
     @utm.patch('os.utime')
     @utm.patch('os.statvfs')
-    @utm.patch('pathlib.Path', new_callable=metapathmock)
     @utm.patch('acddl.worker.AsyncWorker', autospec=True)
-    def testDownload(self, FakeAsyncWorker, FakePath, fake_statvfs, fake_utime):
-        context = utm.Mock()
-        # mock client
-        context.client.download_node = fake_download_node
-        # mock db
-        context.db.get_children = fake_get_children
-        context.db.get_path = fake_get_path
-        # mock root
-        context.root = pathlib.Path('/local')
-        # mock os
-        vfs = utm.Mock()
-        fake_statvfs.return_value = vfs
-        vfs.f_frsize = 1
-        vfs.f_bavail = 10 * 1024 ** 3
+    def testDownload(self, FakeAsyncWorker, fake_statvfs, fake_utime):
+        lfs = create_fake_local_file_system()
+        rfs = create_fake_remote_file_system()
+        with utm.patch('pathlib.Path', new_callable=functools.partial(metapathmock, lfs)) as FakePath:
+            context = utm.Mock()
+            # mock client
+            context.client.download_node = fake_download_node
+            # mock db
+            context.db.get_children = functools.partial(fake_get_children, rfs)
+            context.db.get_path = functools.partial(fake_get_path, rfs)
+            # mock root
+            context.root = pathlib.Path('/local')
+            # mock os
+            vfs = utm.Mock()
+            fake_statvfs.return_value = vfs
+            vfs.f_frsize = 1
+            vfs.f_bavail = 10 * 1024 ** 3
 
-        dc = ctrl.DownloadController(context)
-        u.async_call(dc._download, NodeMock(REMOTE_TREE_1), context.root, True)
-        assert context.client.download_node.call_count == 2
+            dc = ctrl.DownloadController(context)
+            u.async_call(dc._download, NodeMock(rfs, '/remote/folder_2'), context.root, True)
+            # assert context.client.download_node.call_count == 2
 
 
 async def fake_resolve_path(fs, remote_path):
@@ -200,8 +202,29 @@ async def fake_get_children(fs, node):
     children = [NodeMock(fs, fs.JoinPaths(node._path, _)) for _ in children]
     return children
 
-async def fake_get_path(node):
-    raise NotImplementedError()
+async def fake_get_path(fs, node):
+    dirname, basename = fs.SplitPath(node._path)
+    return dirname
 
-async def fake_download_node(node):
-    raise NotImplementedError()
+async def fake_download_node(node, local_path):
+    r_fake_open = ffs.FakeFileOpen(node._fs)
+    l_fake_open = ffs.FakeFileOpen(local_path._fs)
+
+    assert not node.is_folder
+
+    local_file = str(local_path / node.name)
+    with r_fake_open(node._path, 'rb') as fin, l_fake_open(local_file, 'wb') as fout:
+        while True:
+            chunk = fin.read(65535)
+            if not chunk:
+                break
+            fout.write(chunk)
+
+    hasher = hashlib.md5()
+    with l_fake_open(local_file, 'rb') as fin:
+        while True:
+            chunk = fin.read(65536)
+            if not chunk:
+                break
+            hasher.update(chunk)
+    return hasher.hexdigest()
