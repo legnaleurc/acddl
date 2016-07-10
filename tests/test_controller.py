@@ -14,7 +14,7 @@ from . import util as u
 
 class PathMock(utm.Mock):
 
-    def __init__(self, fs, *pathsegments, **kwargs):
+    def __init__(self, fs=None, *pathsegments, **kwargs):
         super(PathMock, self).__init__()
 
         self._fs = fs
@@ -97,39 +97,37 @@ class NodeMock(utm.Mock):
                 hasher.update(chunk)
         return hasher.hexdigest()
 
-    @property
-    def _children(self):
-        fake_os = ffs.FakeOsModule(self._fs)
-        children = fake_os.listdir(self._path)
-        children = [NodeMock(self._fs, self._fs.JoinPaths(self._path, _)) for _ in children]
-        folders = [_ for _ in children if _.is_folder]
-        files = [_ for _ in children if not _.is_folder]
-        return (folders, files)
-
 
 def create_fake_local_file_system():
     fs = ffs.FakeFilesystem()
     file_1 = fs.CreateFile('/local/file_1.txt', contents='file 1')
-    file_1.st_mtime = 1467808000
+    file_1.st_mtime = 1467800000
     file_2 = fs.CreateFile('/local/folder_1/file_2.txt', contents='file 2')
-    file_2.st_mtime = 1467807000
+    file_2.st_mtime = 1467801000
     folder_1 = fs.GetObject('/local/folder_1')
-    folder_1.st_mtime = 1467809000
+    folder_1.st_mtime = 1467802000
     return fs
 
 
 def create_fake_remote_file_system():
     fs = ffs.FakeFilesystem()
     file_3 = fs.CreateFile('/remote/file_3.txt', contents='file 3')
-    file_3.st_mtime = 1467806000
+    file_3.st_mtime = 1467803000
     file_4 = fs.CreateFile('/remote/folder_2/file_4.txt', contents='file 4')
-    file_4.st_mtime = 1467805000
+    file_4.st_mtime = 1467804000
     folder_2 = fs.GetObject('/remote/folder_2')
-    folder_2.st_mtime = 1467804000
+    folder_2.st_mtime = 1467805000
     return fs
 
 
-metapathmock = lambda *args, **kwargs: functools.partial(PathMock, create_fake_local_file_system())
+def metapathmock(fs, *args, **kwargs):
+    class ConcretePathMock(PathMock):
+
+        def __init__(self, *args, **kwargs):
+            super(ConcretePathMock, self).__init__(fs, *args, **kwargs)
+
+    return ConcretePathMock
+
 create_nodemock = functools.partial(lambda fs, *args, **kwargs: NodeMock(fs, *args, **kwargs), fs=create_fake_remote_file_system())
 
 
@@ -152,20 +150,22 @@ class TestDownloadController(ut.TestCase):
         dc._worker.start.assert_called_once_with()
         dc._worker.do_later.assert_called_once_with(utm.ANY)
 
-    @utm.patch('pathlib.Path', new_callable=metapathmock)
     @utm.patch('acddl.worker.AsyncWorker', autospec=True)
-    def testDownloadFrom(self, FakeAsyncWorker, FakePath):
-        context = utm.Mock()
-        # mock acd_db
-        context.db.sync = u.AsyncMock()
-        context.db.resolve_path = fake_resolve_path
-        context.db.get_children = fake_get_children
-        # mock root
-        context.root = pathlib.Path('/local')
+    def testDownloadFrom(self, FakeAsyncWorker):
+        lfs = create_fake_local_file_system()
+        rfs = create_fake_remote_file_system()
+        with utm.patch('pathlib.Path', new_callable=functools.partial(metapathmock, lfs)) as FakePath:
+            context = utm.Mock()
+            # mock acd_db
+            context.db.sync = u.AsyncMock()
+            context.db.resolve_path = functools.partial(fake_resolve_path, rfs)
+            context.db.get_children = functools.partial(fake_get_children, rfs)
+            # mock root
+            context.root = pathlib.Path('/local')
 
-        dc = ctrl.DownloadController(context)
-        u.async_call(dc._download_from, '/remote')
-        assert dc._worker.do_later.call_count == 2
+            dc = ctrl.DownloadController(context)
+            u.async_call(dc._download_from, '/remote')
+            assert dc._worker.do_later.call_count == 2
 
     @utm.patch('os.utime')
     @utm.patch('os.statvfs')
@@ -191,12 +191,14 @@ class TestDownloadController(ut.TestCase):
         assert context.client.download_node.call_count == 2
 
 
-async def fake_resolve_path(remote_path):
-    return
-    raise NotImplementedError()
+async def fake_resolve_path(fs, remote_path):
+    return NodeMock(fs, remote_path)
 
-async def fake_get_children(node):
-    raise NotImplementedError()
+async def fake_get_children(fs, node):
+    fake_os = ffs.FakeOsModule(fs)
+    children = fake_os.listdir(node._path)
+    children = [NodeMock(fs, fs.JoinPaths(node._path, _)) for _ in children]
+    return children
 
 async def fake_get_path(node):
     raise NotImplementedError()

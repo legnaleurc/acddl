@@ -118,7 +118,7 @@ class DownloadController(object):
         await self._context.db.sync()
         children = await self._get_unified_children(remote_paths)
         mtime = self._get_oldest_mtime()
-        children = filter(lambda _: _.modified > mtime, children)
+        children = list(filter(lambda _: _.modified > mtime, children))
         for child in children:
             task = self._make_download_task(child, need_mtime=False)
             self._worker.do_later(task)
