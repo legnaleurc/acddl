@@ -1,2 +1,2 @@
-acdcli >= 0.3.0a2
+-e git+https://github.com/yadayada/acd_cli.git#egg=acd_cli
 tornado
