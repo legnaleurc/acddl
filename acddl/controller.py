@@ -288,7 +288,7 @@ class DownloadTask(worker.Task):
             return False
         if not self._node or not that._node:
             return False
-        return self._node.modified > that._node.modified
+        return self._node.modified < that._node.modified
 
     def __eq__(self, that):
         if self.priority != that.priority:
