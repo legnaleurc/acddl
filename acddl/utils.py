@@ -6,7 +6,7 @@ from tornado import ioloop, web, httpserver
 
 from . import api
 from .log import setup_logger, INFO
-from .task import RootController
+from .controller import RootController
 
 
 def parse_args(args):
