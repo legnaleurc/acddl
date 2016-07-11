@@ -448,6 +448,7 @@ class ACDDBController(object):
         return await self._worker.do(functools.partial(self._acd_db.find_by_regex, pattern))
 
     async def trash(self, node_id):
+        await self._ensure_alive()
         try:
             r = await self._context.client.move_to_trash(node_id)
             await self._worker.do(functools.partial(self._acd_db.insert_nodes, r))
