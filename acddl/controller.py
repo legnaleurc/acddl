@@ -77,10 +77,10 @@ class RootController(object):
 
     async def download(self, node_id):
         node = await self._context.db.get_node(node_id)
-        self._context.client.download_later(node)
+        self._context.dl.download_later(node)
 
     def update_cache_from(self, remote_paths):
-        self._context.client.multiple_download_later(*remote_paths)
+        self._context.dl.multiple_download_later(*remote_paths)
 
     async def compare(self, node_ids):
         nodes = (self._common_context.get_node(_) for _ in node_ids)
@@ -337,9 +337,11 @@ class ACDClientController(object):
         return await self._worker.do(functools.partial(self._download, node, local_path))
 
     async def get_changes(self, checkpoint, include_purged):
+        await self._ensure_alive()
         return await self._worker.do(functools.partial(self._acd_client.get_changes, checkpoint=checkpoint, include_purged=include_purged, silent=False, file=None))
 
-    def iter_changes_lines(self, changes):
+    async def iter_changes_lines(self, changes):
+        await self._ensure_alive()
         return self._acd_client._iter_changes_lines(changes)
 
     async def _ensure_alive(self):
@@ -386,7 +388,7 @@ class ACDDBController(object):
             full = False
             first = True
 
-            for changeset in self._context.client.iter_changes_lines(f):
+            for changeset in await self._context.client.iter_changes_lines(f):
                 if changeset.reset or (full and first):
                     await self._worker.do(self._acd_db.drop_all)
                     await self._worker.do(self._acd_db.init)
