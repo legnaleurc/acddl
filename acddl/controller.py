@@ -79,7 +79,7 @@ class RootController(object):
         self._context.dl.multiple_download_later(*remote_paths)
 
     async def compare(self, node_ids):
-        nodes = (self._common_context.get_node(_) for _ in node_ids)
+        nodes = (self._context.db.get_node(_) for _ in node_ids)
         nodes = await tg.multi(nodes)
         unique = set(_.md5 for _ in nodes)
         if len(unique) == 1:
@@ -165,7 +165,7 @@ class DownloadController(object):
         entries = None
         while await self._need_recycle(node):
             if not entries:
-                entries = self.common.get_cache_entries()
+                entries = self._get_cache_entries()
             full_path, mtime = entries.pop(0)
             if op.isdir(full_path):
                 shutil.rmtree(full_path)
