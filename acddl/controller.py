@@ -428,6 +428,7 @@ class ACDDBController(object):
         return dirname + node.name
 
     async def get_node(self, node_id):
+        await self._ensure_alive()
         return await self._worker.do(functools.partial(self._acd_db.get_node, node_id))
 
     async def find_by_regex(self, pattern):
