@@ -281,14 +281,14 @@ class DownloadTask(worker.Task):
         self._node = node
         self._need_mtime = need_mtime
 
-    def __lt__(self, that):
+    def __gt__(self, that):
         if self.priority < that._priority:
+            return True
+        if self.priority > that._priority:
             return False
-        if self.priority == that.priority:
-            if not self._node or not that._node:
-                return False
-            return self._node.modified > that._node.modified
-        return self.priority > that.priority
+        if not self._node or not that._node:
+            return False
+        return self._node.modified > that._node.modified
 
     def __eq__(self, that):
         if self.priority != that.priority:
