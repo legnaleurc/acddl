@@ -34,7 +34,8 @@ def main(args=None):
     application = web.Application([
         (r'/nodes', api.NodesHandler),
         (r'/nodes/([a-zA-Z0-9\-_]{22})', api.NodesHandler),
-        (r'/equality', api.EqualityHandler),
+        (r'/cache', api.CacheHandler),
+        (r'/cache/([a-zA-Z0-9\-_]{22})', api.CacheHandler),
     ], controller=controller)
     server = httpserver.HTTPServer(application)
     server.listen(args.listen)

@@ -90,6 +90,9 @@ class RootController(object):
     async def trash(self, node_id):
         return await self._context.db.trash(node_id)
 
+    async def sync_db(self):
+        await self._context.db.sync()
+
 
 class DownloadController(object):
 
