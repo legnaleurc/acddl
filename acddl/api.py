@@ -25,7 +25,7 @@ class NodesHandler(web.RequestHandler):
             return
 
         controller = self.settings['controller']
-        controller.trash(id_)
+        await controller.trash(id_)
 
 
 class CacheHandler(web.RequestHandler):
