@@ -380,7 +380,7 @@ class ACDDBController(object):
 
         # copied from acd_cli
 
-        check_point = self._acd_db.KeyValueStorage.get(self._CHECKPOINT_KEY)
+        check_point = await self._worker.do(functools.partial(self._acd_db.KeyValueStorage.get, self._CHECKPOINT_KEY))
 
         f = await self._context.client.get_changes(checkpoint=check_point, include_purged=bool(check_point))
 
@@ -398,14 +398,14 @@ class ACDDBController(object):
 
                 if changeset.nodes:
                     await self._worker.do(functools.partial(self._acd_db.insert_nodes, changeset.nodes, partial=not full))
-                self._acd_db.KeyValueStorage.update({
+                await self._worker.do(functools.partial(self._acd_db.KeyValueStorage.update, {
                     self._LAST_SYNC_KEY: time.time(),
-                })
+                }))
 
                 if changeset.nodes or changeset.purged_nodes:
-                    self._acd_db.KeyValueStorage.update({
+                    await self._worker.do(functools.partial(self._acd_db.KeyValueStorage.update, {
                         self._CHECKPOINT_KEY: changeset.checkpoint,
-                    })
+                    }))
 
                 first = False
         except RequestError as e:
