@@ -15,7 +15,7 @@ from acdcli.utils import hashing
 from acdcli.utils.time import datetime_to_timestamp
 from tornado import ioloop as ti, gen as tg
 
-from .log import ERROR, WARNING, INFO, EXCEPTION
+from .log import ERROR, WARNING, INFO, EXCEPTION, DEBUG
 from . import worker
 
 
@@ -167,8 +167,8 @@ class DownloadController(object):
             if not entries:
                 entries = self._get_cache_entries()
             full_path, mtime = entries.pop(0)
-            if op.isdir(full_path):
-                shutil.rmtree(full_path)
+            if full_path.is_dir():
+                shutil.rmtree(str(full_path))
             else:
                 full_path.unlink()
             self._last_recycle = mtime
@@ -451,6 +451,7 @@ class ACDDBController(object):
         await self._ensure_alive()
         try:
             r = await self._context.client.move_to_trash(node_id)
+            DEBUG('acddl') << r
             await self._worker.do(functools.partial(self._acd_db.insert_nodes, r))
         except RequestError as e:
             EXCEPTION('acddl') << str(e)
