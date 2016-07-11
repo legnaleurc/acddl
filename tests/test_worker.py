@@ -80,13 +80,13 @@ class TestAsyncWorker(ut.TestCase):
     def testDoLaterWithSync(self):
         fn = self._createSyncMock()
         self._worker.do_later(fn)
-        u.async_call(functools.partial(tg.sleep, 0.01))
+        u.async_call(functools.partial(tg.sleep, 0.5))
         fn.assert_called_once_with()
 
     def testDoLaterWithAsync(self):
         fn = self._createAsyncMock()
         self._worker.do_later(fn)
-        u.async_call(functools.partial(tg.sleep, 0.01))
+        u.async_call(functools.partial(tg.sleep, 0.5))
         fn.assert_called_once_with()
 
     def testDoWithSyncPartial(self):
@@ -105,26 +105,37 @@ class TestAsyncWorker(ut.TestCase):
     def testDoLaterWithSyncPartial(self):
         fn = self._createSyncMock()
         self._worker.do_later(functools.partial(fn, 1, k=7))
-        u.async_call(functools.partial(tg.sleep, 0.01))
+        u.async_call(functools.partial(tg.sleep, 0.5))
         fn.assert_called_once_with(1, k=7)
 
     def testDoLaterWithAsyncPartial(self):
         fn = self._createAsyncMock()
         self._worker.do_later(functools.partial(fn, 1, k=7))
-        u.async_call(functools.partial(tg.sleep, 0.01))
+        u.async_call(functools.partial(tg.sleep, 0.5))
         fn.assert_called_once_with(1, k=7)
         fn.assert_awaited()
 
     def testRunOrder(self):
-        first_task = worker.Task(lambda: tg.moment)
+        first_task = self._createAsyncMock()
         side = []
         second_task = TestTask(side, 2)
-        third_task = TestTask(side, 1)
+        third_task = TestTask(side, 3)
         self._worker.do_later(first_task)
         self._worker.do_later(second_task)
         self._worker.do_later(third_task)
-        u.async_call(functools.partial(tg.sleep, 0.01))
+        u.async_call(functools.partial(tg.sleep, 0.5))
         self.assertEqual(side, [third_task, second_task])
+
+    def testFlush(self):
+        first_task = self._createAsyncMock()
+        side = []
+        second_task = TestTask(side, 1)
+        third_task = FlushTestTask(side, 1)
+        self._worker.do_later(first_task)
+        self._worker.do_later(second_task)
+        self._worker.do_later(third_task)
+        u.async_call(functools.partial(tg.sleep, 0.5))
+        self.assertEqual(side, [third_task])
 
     def _createSyncMock(self):
         return utm.Mock(return_value=42)
@@ -142,9 +153,13 @@ class TestTask(worker.Task):
         self._order = order
 
     def __eq__(self, that):
-        return self._order == that._order
+        return self.priority == that.priority and self._order == that._order
 
-    def __lt__(self, that):
+    def __gt__(self, that):
+        if self.priority < that.priority:
+            return True
+        if self.priority > that.priority:
+            return False
         return self._order < that._order
 
     def __call__(self):
@@ -152,4 +167,25 @@ class TestTask(worker.Task):
         return self
 
     def __await__(self):
-        yield tg.moment
+        yield tg.sleep(0.125)
+
+    @property
+    def priority(self):
+        return -2
+
+
+class FlushTestTask(TestTask):
+
+    def __init__(self, side, order):
+        super(FlushTestTask, self).__init__(side, order)
+
+    def __call__(self):
+        self._side.append(self)
+        raise worker.FlushTask(self._filter)
+
+    @property
+    def priority(self):
+        return -1
+
+    def _filter(self, task):
+        return task.priority != -2

@@ -4,7 +4,7 @@ import inspect
 import queue
 import threading
 
-from tornado import gen as tg, ioloop as ti, queues as tq
+from tornado import gen as tg, ioloop as ti, queues as tq, locks as tl
 
 from .log import EXCEPTION
 
@@ -72,6 +72,7 @@ class AsyncWorker(object):
         self._ready_lock = threading.Condition()
         self._loop = None
         self._queue = tq.PriorityQueue()
+        self._task_lock = tl.Lock()
         self._done = {}
 
     @property
@@ -122,16 +123,22 @@ class AsyncWorker(object):
 
     async def _process(self):
         while True:
+            await self._task_lock.acquire()
             task = await self._queue.get()
             try:
                 rv = task()
                 if inspect.isawaitable(rv):
                     rv = await rv
+            except FlushTask as e:
+                rv = None
+                queue = filter(e, self._queue._queue)
+                self._queue._queue = list(queue)
             except Exception as e:
                 rv = None
                 EXCEPTION('acddl') << str(e)
             finally:
                 self._queue.task_done()
+                self._task_lock.release()
                 done = self._done.get(id(task), None)
                 if done:
                     del self._done[id(task)]
@@ -149,15 +156,30 @@ class Task(object):
     def __eq__(self, that):
         return self.priority == that.priority and id(self) == id(that)
 
-    def __lt__(self, that):
-        return self.priority < that.priority or id(self) < id(that)
+    def __gt__(self, that):
+        if self.priority < that.priority:
+            return True
+        if self.priority > that.priority:
+            return False
+        return id(self) < id(that)
 
     def __call__(self):
         if not self._callable:
             raise NotImplementedError()
         return self._callable()
 
-    # higher executes earlier
+    # highest first
     @property
     def priority(self):
         return 0
+
+
+class FlushTask(Exception):
+
+    def __init__(self, filter_):
+        super(FlushTask, self).__init__()
+
+        self._filter = filter_
+
+    def __call__(self, task):
+        return self._filter(task)

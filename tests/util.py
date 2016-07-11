@@ -16,7 +16,7 @@ class AsyncMock(utm.Mock):
         self._awaited = False
 
     def __await__(self):
-        yield tg.moment
+        yield tg.sleep(0.25)
         self._awaited = True
         return self._return_value
 
