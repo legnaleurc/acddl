@@ -64,7 +64,7 @@ class RootController(object):
 
     def close(self, signum, frame):
         self._context.close()
-        main_loop = ioloop.IOLoop.instance()
+        main_loop = ti.IOLoop.instance()
         main_loop.stop()
 
     async def search(self, pattern):
