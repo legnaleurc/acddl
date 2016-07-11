@@ -280,24 +280,26 @@ class DownloadTask(worker.Task):
 
         self._node = node
         self._need_mtime = need_mtime
-        # higher will do first
-        self._priority = 0 if self._need_mtime else 1
 
     def __lt__(self, that):
-        if self._priority < that._priority:
+        if self.priority < that._priority:
             return False
-        if self._priority == that._priority:
+        if self.priority == that.priority:
             if not self._node or not that._node:
                 return False
             return self._node.modified > that._node.modified
-        return self._priority > that._priority
+        return self.priority > that.priority
 
     def __eq__(self, that):
-        if self._priority != that._priority:
+        if self.priority != that.priority:
             return False
         if self._node and that._node:
             return self._node.modified == that._node.modified
         return self._node == that._node
+
+    @property
+    def priority(self):
+        return 1 if self._need_mtime else 2
 
 
 class ACDClientController(object):
