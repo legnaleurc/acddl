@@ -9,60 +9,6 @@ from tornado import gen as tg, ioloop as ti, queues as tq, locks as tl
 from .log import EXCEPTION
 
 
-class Worker(threading.Thread):
-
-    def __init__(self):
-        super(Worker, self).__init__()
-
-        self._queue = TaskQueue()
-
-    # Override
-    def run(self):
-        while True:
-            with self._queue.pop() as (task, done):
-                try:
-                    rv = task()
-                except StopWorker as e:
-                    rv = None
-                    break
-                except Exception as e:
-                    rv = None
-                    EXCEPTION('acddl') << str(e)
-                finally:
-                    done(rv)
-
-    async def do(self, callable_):
-        return await tg.Task(lambda callback: self._queue.push(callable_, callback))
-
-    async def stop(self):
-        def terminate():
-            raise StopWorker()
-        await tg.Task(lambda callback: self._queue.push(terminate, callback))
-        self.join()
-
-
-class TaskQueue(object):
-
-    def __init__(self):
-        self._queue = queue.Queue()
-
-    @contextlib.contextmanager
-    def pop(self):
-        try:
-            yield self._queue.get()
-        finally:
-            self._queue.task_done()
-
-    def push(self, callable_, done):
-        self._queue.put((callable_, done))
-
-
-class StopWorker(Exception):
-
-    def __init__(self):
-        super(StopWorker, self).__init__()
-
-
 class AsyncWorker(object):
 
     def __init__(self):
