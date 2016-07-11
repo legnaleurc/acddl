@@ -157,6 +157,7 @@ class Task(object):
             raise NotImplementedError()
         return self._callable()
 
+    # higher executes earlier
     @property
     def priority(self):
         return 0
