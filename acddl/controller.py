@@ -75,6 +75,9 @@ class RootController(object):
         node = await self._context.db.get_node(node_id)
         self._context.dl.download_later(node)
 
+    def abort_pending(self):
+        self._context.dl.abort()
+
     def update_cache_from(self, remote_paths):
         self._context.dl.multiple_download_later(*remote_paths)
 
@@ -112,6 +115,10 @@ class DownloadController(object):
     def multiple_download_later(self, *remote_paths):
         self._ensure_alive()
         task = functools.partial(self._download_from, *remote_paths)
+        self._worker.do_later(task)
+
+    def abort(self):
+        task = self._make_flush_task()
         self._worker.do_later(task)
 
     def _ensure_alive(self):

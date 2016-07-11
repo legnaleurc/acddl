@@ -40,9 +40,12 @@ class CacheHandler(web.RequestHandler):
         self.write(result)
 
     def post(self):
-        acd_paths = self.get_arguments('acd_paths[]')
-
         controller = self.settings['controller']
+
+        acd_paths = self.get_arguments('acd_paths[]', None)
+        if not acd_paths:
+            controller.abort_pending()
+
         controller.update_cache_from(acd_paths)
 
     async def put(self, id_):
