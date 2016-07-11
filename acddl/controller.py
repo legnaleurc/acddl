@@ -125,7 +125,7 @@ class DownloadController(object):
             self._worker.do_later(task)
 
     def _make_download_task(self, node, need_mtime):
-        return DownloadTask(self._download, node, self._context.root_folder, need_mtime)
+        return DownloadTask(self._download, node, self._context.root, need_mtime)
 
     def _make_flush_task(self):
         return FlushTask()
