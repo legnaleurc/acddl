@@ -286,9 +286,9 @@ class DownloadTask(worker.Task):
         self._need_mtime = need_mtime
 
     def __gt__(self, that):
-        if self.priority < that._priority:
+        if self.priority < that.priority:
             return True
-        if self.priority > that._priority:
+        if self.priority > that.priority:
             return False
         if not self._node or not that._node:
             return False
