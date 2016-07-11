@@ -129,7 +129,7 @@ class AsyncWorker(object):
                 rv = task()
                 if inspect.isawaitable(rv):
                     rv = await rv
-            except FlushTask as e:
+            except FlushTasks as e:
                 rv = None
                 queue = filter(e, self._queue._queue)
                 self._queue._queue = list(queue)
@@ -174,10 +174,10 @@ class Task(object):
         return 0
 
 
-class FlushTask(Exception):
+class FlushTasks(Exception):
 
     def __init__(self, filter_):
-        super(FlushTask, self).__init__()
+        super(FlushTasks, self).__init__()
 
         self._filter = filter_
 

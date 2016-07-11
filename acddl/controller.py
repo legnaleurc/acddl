@@ -127,6 +127,9 @@ class DownloadController(object):
     def _make_download_task(self, node, need_mtime):
         return DownloadTask(self._download, node, self._context.root_folder, need_mtime)
 
+    def _make_flush_task(self):
+        return FlushTask()
+
     async def _get_unified_children(self, remote_paths):
         children = []
         for remote_path in remote_paths:
@@ -300,6 +303,22 @@ class DownloadTask(worker.Task):
     @property
     def priority(self):
         return 1 if self._need_mtime else 2
+
+
+class FlushTask(worker.Task):
+
+    def __init__(self):
+        super(FlushTask, self).__init__()
+
+    def __call__(self):
+        raise worker.FlushTasks(self._filter)
+
+    @property
+    def priority(self):
+        return 65535
+
+    def _filter(self, task):
+        return isinstance(task, DownloadTask) and task.priority == 1
 
 
 class ACDClientController(object):

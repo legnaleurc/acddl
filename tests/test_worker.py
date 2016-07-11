@@ -181,7 +181,7 @@ class FlushTestTask(TestTask):
 
     def __call__(self):
         self._side.append(self)
-        raise worker.FlushTask(self._filter)
+        raise worker.FlushTasks(self._filter)
 
     @property
     def priority(self):
