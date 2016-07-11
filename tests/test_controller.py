@@ -1,7 +1,6 @@
 import functools
 import unittest as ut
 from unittest import mock as utm
-import pathlib
 
 from tornado import ioloop as ti, gen as tg
 from pyfakefs import fake_filesystem as ffs
@@ -40,7 +39,7 @@ class TestDownloadController(ut.TestCase):
             context.db.resolve_path = functools.partial(fake_resolve_path, rfs)
             context.db.get_children = functools.partial(fake_get_children, rfs)
             # mock root
-            context.root = pathlib.Path('/local')
+            context.root = FakePath('/local')
 
             dc = ctrl.DownloadController(context)
             u.async_call(dc._download_from, '/remote')
@@ -60,7 +59,7 @@ class TestDownloadController(ut.TestCase):
             context.db.get_children = functools.partial(fake_get_children, rfs)
             context.db.get_path = functools.partial(fake_get_path, rfs)
             # mock root
-            context.root = pathlib.Path('/local')
+            context.root = FakePath('/local')
             # mock os
             vfs = utm.Mock()
             fake_statvfs.return_value = vfs
