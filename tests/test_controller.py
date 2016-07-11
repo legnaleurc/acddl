@@ -2,7 +2,6 @@ import functools
 import unittest as ut
 from unittest import mock as utm
 
-from tornado import ioloop as ti, gen as tg
 from pyfakefs import fake_filesystem as ffs
 
 from acddl import controller as ctrl

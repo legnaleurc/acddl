@@ -2,7 +2,7 @@ import functools
 import unittest as ut
 from unittest import mock as utm
 
-from tornado import ioloop as ti, gen as tg
+from tornado import gen as tg
 
 from acddl import worker
 from . import util as u

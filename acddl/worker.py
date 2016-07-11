@@ -1,7 +1,5 @@
-import contextlib
 import functools
 import inspect
-import queue
 import threading
 
 from tornado import gen as tg, ioloop as ti, queues as tq, locks as tl
