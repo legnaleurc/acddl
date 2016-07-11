@@ -11,6 +11,7 @@ import shutil
 import subprocess as sp
 import sys
 import threading
+import time
 
 from acdcli.api import client as ACD
 from acdcli.api.common import RequestError
@@ -338,7 +339,7 @@ class ACDClientController(object):
 
     async def get_changes(self, checkpoint, include_purged):
         await self._ensure_alive()
-        return await self._worker.do(functools.partial(self._acd_client.get_changes, checkpoint=checkpoint, include_purged=include_purged, silent=False, file=None))
+        return await self._worker.do(functools.partial(self._acd_client.get_changes, checkpoint=checkpoint, include_purged=include_purged, silent=True, file=None))
 
     async def iter_changes_lines(self, changes):
         await self._ensure_alive()
@@ -376,6 +377,8 @@ class ACDDBController(object):
         self._acd_db = None
 
     async def sync(self):
+        INFO('acddl') << 'syncing'
+
         await self._ensure_alive()
 
         # copied from acd_cli
@@ -411,6 +414,8 @@ class ACDDBController(object):
         except RequestError as e:
             EXCEPTION('acddl') << str(e)
             return False
+
+        INFO('acddl') << 'synced'
 
         return True
 
