@@ -147,12 +147,16 @@ class Task(object):
         self._callable = callable_
 
     def __eq__(self, that):
-        return id(self) == id(that)
+        return self.priority == that.priority and id(self) == id(that)
 
     def __lt__(self, that):
-        return id(self) < id(that)
+        return self.priority < that.priority or id(self) < id(that)
 
     def __call__(self):
         if not self._callable:
             raise NotImplementedError()
         return self._callable()
+
+    @property
+    def priority(self):
+        return 0
