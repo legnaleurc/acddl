@@ -6,7 +6,7 @@ from tornado import ioloop, web, httpserver
 
 from . import api
 from .log import setup_logger, INFO
-from .task import Controller
+from .task import RootController
 
 
 def parse_args(args):
@@ -28,7 +28,7 @@ def main(args=None):
     setup_logger('/tmp/acddl.log')
     main_loop = ioloop.IOLoop.instance()
 
-    controller = Controller(args.root)
+    controller = RootController(args.root)
     signal.signal(signal.SIGINT, controller.stop)
 
     application = web.Application([
