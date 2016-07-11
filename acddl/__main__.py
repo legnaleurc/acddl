@@ -1,7 +1,7 @@
 import sys
 
-from . import utils
+from . import util
 
 
-exit_code = utils.main()
+exit_code = util.main()
 sys.exit(exit_code)
