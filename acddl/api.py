@@ -5,14 +5,14 @@ from tornado import web
 
 class NodesHandler(web.RequestHandler):
 
-    def get(self):
+    async def get(self):
         pattern = self.get_argument('pattern', None)
         if not pattern:
             self.set_status(400)
             return
 
         controller = self.settings['controller']
-        nodes = controller.search(pattern)
+        nodes = await controller.search(pattern)
         self.write(nodes)
 
     def post(self):
