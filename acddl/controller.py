@@ -106,7 +106,7 @@ class DownloadController(object):
 
     def download_later(self, node):
         self._ensure_alive()
-        task = self._make_download_task(node, need_mtime=True)
+        task = self._make_download_task(node, need_mtime=False)
         self._worker.do_later(task)
 
     def multiple_download_later(self, *remote_paths):
@@ -123,7 +123,7 @@ class DownloadController(object):
         mtime = self._get_oldest_mtime()
         children = list(filter(lambda _: _.modified > mtime, children))
         for child in children:
-            task = self._make_download_task(child, need_mtime=False)
+            task = self._make_download_task(child, need_mtime=True)
             self._worker.do_later(task)
 
     def _make_download_task(self, node, need_mtime):
@@ -166,8 +166,6 @@ class DownloadController(object):
         while await self._need_recycle(node):
             if not entries:
                 entries = self._get_cache_entries()
-            for a, b in entries:
-                DEBUG('acddl') << a << b
             full_path, mtime = entries.pop(0)
             if full_path.is_dir():
                 shutil.rmtree(str(full_path))
