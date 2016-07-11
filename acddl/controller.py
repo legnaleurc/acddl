@@ -92,6 +92,9 @@ class RootController(object):
         else:
             return [_.size for _ in nodes]
 
+    async def trash(self, node_id):
+        return await self._context.db.trash(node_id)
+
 
 class DownloadController(object):
 
@@ -345,6 +348,10 @@ class ACDClientController(object):
         await self._ensure_alive()
         return self._acd_client._iter_changes_lines(changes)
 
+    async def move_to_trash(self, node_id):
+        await self._ensure_alive()
+        return await self._worker.do(functools.partial(self._acd_client.move_to_trash, node_id))
+
     async def _ensure_alive(self):
         if not self._acd_client:
             self._worker.start()
@@ -441,6 +448,15 @@ class ACDDBController(object):
     async def find_by_regex(self, pattern):
         await self._ensure_alive()
         return await self._worker.do(functools.partial(self._acd_db.find_by_regex, pattern))
+
+    async def trash(self, node_id):
+        try:
+            r = await self._context.client.move_to_trash(node_id)
+            await self._worker.do(functools.partial(self._acd_db.insert_nodes, r))
+        except RequestError as e:
+            EXCEPTION('acddl') << str(e)
+            return False
+        return True
 
     async def _ensure_alive(self):
         if not self._acd_db:

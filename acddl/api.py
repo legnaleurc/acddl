@@ -29,6 +29,14 @@ class NodesHandler(web.RequestHandler):
         controller = self.settings['controller']
         await controller.download(id_)
 
+    async def delete(self, id_):
+        if id_ is None:
+            self.set_status(400)
+            return
+
+        controller = self.settings['controller']
+        controller.trash(id_)
+
 
 class EqualityHandler(web.RequestHandler):
 
