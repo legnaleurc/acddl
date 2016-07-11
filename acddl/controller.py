@@ -166,6 +166,8 @@ class DownloadController(object):
         while await self._need_recycle(node):
             if not entries:
                 entries = self._get_cache_entries()
+            for a, b in entries:
+                DEBUG('acddl') << a << b
             full_path, mtime = entries.pop(0)
             if full_path.is_dir():
                 shutil.rmtree(str(full_path))
