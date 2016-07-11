@@ -115,8 +115,41 @@ class TestAsyncWorker(ut.TestCase):
         fn.assert_called_once_with(1, k=7)
         fn.assert_awaited()
 
+    def testRunOrder(self):
+        first_task = worker.Task(lambda: tg.moment)
+        side = []
+        second_task = TestTask(side, 2)
+        third_task = TestTask(side, 1)
+        self._worker.do_later(first_task)
+        self._worker.do_later(second_task)
+        self._worker.do_later(third_task)
+        u.async_call(functools.partial(tg.sleep, 0.01))
+        self.assertEqual(side, [third_task, second_task])
+
     def _createSyncMock(self):
         return utm.Mock(return_value=42)
 
     def _createAsyncMock(self):
         return u.AsyncMock(return_value=42)
+
+
+class TestTask(worker.Task):
+
+    def __init__(self, side, order):
+        super(TestTask, self).__init__()
+
+        self._side = side
+        self._order = order
+
+    def __eq__(self, that):
+        return self._order == that._order
+
+    def __lt__(self, that):
+        return self._order < that._order
+
+    def __call__(self):
+        self._side.append(self)
+        return self
+
+    def __await__(self):
+        yield tg.moment
