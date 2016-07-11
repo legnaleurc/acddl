@@ -29,7 +29,7 @@ def main(args=None):
     main_loop = ioloop.IOLoop.instance()
 
     controller = RootController(args.root)
-    signal.signal(signal.SIGINT, controller.stop)
+    signal.signal(signal.SIGINT, controller.close)
 
     application = web.Application([
         (r'/nodes', api.NodesHandler),
