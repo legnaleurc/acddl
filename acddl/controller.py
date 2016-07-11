@@ -421,7 +421,7 @@ class ACDDBController(object):
 
     async def resolve_path(self, remote_path):
         await self._ensure_alive()
-        return await self._worker.do(functools.partial(self._acd_db.resolve, node))
+        return await self._worker.do(functools.partial(self._acd_db.resolve, remote_path))
 
     async def get_children(self, node):
         await self._ensure_alive()
