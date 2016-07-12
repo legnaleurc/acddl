@@ -42,7 +42,7 @@ class CacheHandler(web.RequestHandler):
     def post(self):
         controller = self.settings['controller']
 
-        acd_paths = self.get_arguments('acd_paths[]', None)
+        acd_paths = self.get_arguments('acd_paths[]')
         if not acd_paths:
             controller.abort_pending()
 
