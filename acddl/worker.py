@@ -2,7 +2,7 @@ import functools
 import inspect
 import threading
 
-from tornado import gen as tg, ioloop as ti, queues as tq, locks as tl
+from tornado import gen as tg, ioloop as ti, queues as tq
 
 from .log import EXCEPTION
 
@@ -16,7 +16,6 @@ class AsyncWorker(object):
         self._ready_lock = threading.Condition()
         self._loop = None
         self._queue = tq.PriorityQueue()
-        self._task_lock = tl.Lock()
         self._done = {}
 
     @property
@@ -67,7 +66,6 @@ class AsyncWorker(object):
 
     async def _process(self):
         while True:
-            # await self._task_lock.acquire()
             task = await self._queue.get()
             try:
                 rv = task()
@@ -82,7 +80,6 @@ class AsyncWorker(object):
                 EXCEPTION('acddl') << str(e)
             finally:
                 self._queue.task_done()
-                # self._task_lock.release()
                 done = self._done.get(id(task), None)
                 if done:
                     del self._done[id(task)]
