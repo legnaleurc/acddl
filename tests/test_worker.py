@@ -118,9 +118,9 @@ class TestAsyncWorker(ut.TestCase):
 
     def testDoWithException(self):
         def fn():
-            raise Exception('magic')
+            raise TestException('magic')
 
-        with self.assertRaises(Exception) as e:
+        with self.assertRaises(TestException) as e:
             u.async_call(self._worker.do, fn)
 
     def _createSyncMock(self):
@@ -175,3 +175,7 @@ class FlushTestTask(TestTask):
 
     def _filter(self, task):
         return task.priority != -2
+
+
+class TestException(Exception):
+    pass

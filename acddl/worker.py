@@ -85,7 +85,6 @@ class AsyncWorker(object):
                 self._queue._queue = list(queue)
             except Exception as e:
                 exception = e
-                EXCEPTION('acddl') << str(e)
             finally:
                 self._queue.task_done()
                 id_ = id(task)
