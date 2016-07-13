@@ -116,6 +116,13 @@ class TestAsyncWorker(ut.TestCase):
         u.async_call(functools.partial(tg.sleep, 0.5))
         self.assertEqual(side, [third_task])
 
+    def testDoWithException(self):
+        def fn():
+            raise Exception('magic')
+
+        with self.assertRaises(Exception) as e:
+            u.async_call(self._worker.do, fn)
+
     def _createSyncMock(self):
         return utm.Mock(return_value=42)
 
