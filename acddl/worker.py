@@ -16,7 +16,7 @@ class AsyncWorker(object):
         self._ready_lock = threading.Condition()
         self._loop = None
         self._queue = tq.PriorityQueue()
-        self._done = {}
+        self._tail = {}
 
     @property
     def is_alive(self):
@@ -56,11 +56,11 @@ class AsyncWorker(object):
         return maybe_task
 
     def _make_tail(self, id_, callback):
-        self._done[id_] = callback
+        self._tail[id_] = callback
 
     def _update_tail(self, id_, future):
-        cb = self._done[id_]
-        self._done[id_] = (future, cb)
+        cb = self._tail[id_]
+        self._tail[id_] = (future, cb)
 
     def _run(self):
         with self._ready_lock:
@@ -89,9 +89,9 @@ class AsyncWorker(object):
             finally:
                 self._queue.task_done()
                 id_ = id(task)
-                future, done = self._done.get(id_, (None, None))
+                future, done = self._tail.get(id_, (None, None))
                 if future or done:
-                    del self._done[id_]
+                    del self._tail[id_]
                 if exception and future:
                     future.set_exception(exception)
                 if done:
