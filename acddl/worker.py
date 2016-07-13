@@ -91,7 +91,7 @@ class AsyncWorker(object):
                     del self._tail[id_]
                 if exception and future:
                     future.set_exception(exception)
-                if done:
+                elif done:
                     done(rv)
 
 
