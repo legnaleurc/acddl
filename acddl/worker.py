@@ -39,12 +39,12 @@ class AsyncWorker(object):
             self._thread = None
 
     async def do(self, task):
-        def _(callback):
-            self._done[id(task)] = callback
-
         task = self._ensure_task(task)
         await self._queue.put(task)
-        rv = await tg.Task(_)
+        id_ = id(task)
+        future = tg.Task(functools.partial(self._make_tail, id_))
+        self._update_tail(id_, future)
+        rv = await future
         return rv
 
     def do_later(self, task):
@@ -54,6 +54,13 @@ class AsyncWorker(object):
         if not isinstance(maybe_task, Task):
             maybe_task = Task(maybe_task)
         return maybe_task
+
+    def _make_tail(self, id_, callback):
+        self._done[id_] = callback
+
+    def _update_tail(self, id_, future):
+        cb = self._done[id_]
+        self._done[id_] = (future, cb)
 
     def _run(self):
         with self._ready_lock:
@@ -67,22 +74,27 @@ class AsyncWorker(object):
     async def _process(self):
         while True:
             task = await self._queue.get()
+            rv = None
+            exception = None
             try:
                 rv = task()
                 if inspect.isawaitable(rv):
                     rv = await rv
             except FlushTasks as e:
-                rv = None
                 queue = filter(e, self._queue._queue)
                 self._queue._queue = list(queue)
             except Exception as e:
-                rv = None
+                exception = e
                 EXCEPTION('acddl') << str(e)
             finally:
                 self._queue.task_done()
-                done = self._done.get(id(task), None)
+                id_ = id(task)
+                future, done = self._done.get(id_, (None, None))
+                if future or done:
+                    del self._done[id_]
+                if exception and future:
+                    future.set_exception(exception)
                 if done:
-                    del self._done[id(task)]
                     done(rv)
 
 
