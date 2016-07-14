@@ -4,8 +4,6 @@ import threading
 
 from tornado import gen as tg, ioloop as ti, queues as tq
 
-from .log import EXCEPTION
-
 
 class AsyncWorker(object):
 

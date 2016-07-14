@@ -120,7 +120,7 @@ class TestAsyncWorker(ut.TestCase):
         def fn():
             raise TestException('magic')
 
-        with self.assertRaises(TestException) as e:
+        with self.assertRaises(TestException):
             u.async_call(self._worker.do, fn)
 
     def _createSyncMock(self):
