@@ -248,15 +248,8 @@ class DownloadController(object):
         return True
 
     async def _download_file(self, node, local_path, full_path):
-        if full_path.is_file():
-            INFO('acddl') << 'checking existed:' << full_path
-            local = md5sum(full_path)
-            remote = node.md5
-            if local == remote:
-                INFO('acddl') << 'skip same file'
-                return True
-            INFO('acddl') << 'md5 mismatch'
-            full_path.unlink()
+        if check_existed(node, full_path):
+            return True
 
         await self._reserve_space(node)
 
@@ -509,3 +502,19 @@ def human_readable(bytes):
         bytes /= 1024
     else:
         return bytes * 1024, units[-1]
+
+
+def check_existed(node, full_path):
+    if not full_path.is_file():
+        return False
+
+    INFO('acddl') << 'checking existed:' << full_path
+    local = md5sum(full_path)
+    remote = node.md5
+    if local == remote:
+        INFO('acddl') << 'skip same file'
+        return True
+
+    INFO('acddl') << 'md5 mismatch'
+    full_path.unlink()
+    return False
