@@ -4,14 +4,34 @@ A centralized download server
 
 ## RESTful API
 
+### GET /nodes
+
+* pattern (string)
+
+    search nodes by the given pattern
+
 ### POST /nodes
 
-* acd_paths (list of string)
+sync ACD cache database
 
-    download from the ACD paths
+### DELETE /nodes/{id}
 
-### PUT /nodes/{id}
+move the node to trash
 
-* id (string)
+### GET /cache
 
-    the node ID
+* nodes[] (string)
+
+    compare nodes
+
+### POST /cache
+
+abort pending downloads
+
+* (optional) acd_paths[] (string)
+
+    pull files from the given paths
+
+### PUT /cache/{id}
+
+download the given node
