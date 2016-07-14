@@ -184,9 +184,9 @@ class DownloadController(object):
     async def _need_recycle(self, node):
         free_space = self._get_free_space()
         required_space = await self._get_node_size(node)
-        gb_free_space = free_space / 1024 / 1024 / 1024
-        gb_required_space = required_space / 1024 / 1024 / 1024
-        INFO('acddl') << 'free space: {0} GB, required: {1} GB'.format(gb_free_space, gb_required_space)
+        hfs, fsu = human_readable(free_space)
+        hrs, rsu = human_readable(required_space)
+        INFO('acddl') << 'free space: {0} {1}, required: {2} {3}'.format(hfs, fsu, hrs, rsu)
         return free_space <= required_space
 
     # in bytes
@@ -498,3 +498,13 @@ def update_mtime(full_path, s_mtime):
         if e.errno != 36:
             raise
     return True
+
+
+def human_readable(bytes):
+    units = ['B', 'KB', 'MB', 'GB']
+    for unit in units:
+        if bytes < 1024:
+            return bytes, unit
+        bytes /= 1024
+    else:
+        return bytes * 1024, units[-1]
