@@ -73,6 +73,23 @@ class TestDownloadController(ut.TestCase):
             assert l_fake_os.path.isfile('/local/folder_2/file_4.txt')
 
 
+class TestDownloadTask(ut.TestCase):
+
+    def testSort(self):
+        a = self._createDownloadTask(100, False)
+        b = self._createDownloadTask(200, False)
+        c = self._createDownloadTask(100, True)
+        d = self._createDownloadTask(200, True)
+        e = sorted([a, b, c, d])
+        self.assertEqual(e, [b, a, d, c])
+
+    def _createDownloadTask(self, mtime, need_mtime):
+        a = utm.Mock()
+        b = utm.Mock()
+        b.modified = mtime
+        return ctrl.DownloadTask(a, b, a, need_mtime)
+
+
 async def fake_resolve_path(fs, remote_path):
     return u.NodeMock(fs, remote_path)
 
