@@ -4,6 +4,8 @@ import threading
 
 from tornado import gen as tg, ioloop as ti, queues as tq
 
+from acddl.log import DEBUG
+
 
 class AsyncWorker(object):
 
@@ -80,7 +82,9 @@ class AsyncWorker(object):
                     rv = await rv
             except FlushTasks as e:
                 queue = filter(e, self._queue._queue)
-                self._queue._queue = list(queue)
+                queue = list(queue)
+                DEBUG('acddl') << 'before' << len(self._queue._queue) << 'after' << len(queue)
+                self._queue._queue = queue
             except Exception as e:
                 exception = e
             finally:
