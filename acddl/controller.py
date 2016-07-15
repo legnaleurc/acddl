@@ -141,11 +141,11 @@ class DownloadController(object):
         return FlushTask()
 
     async def _get_unified_children(self, remote_paths):
-        children = []
-        for remote_path in remote_paths:
-            folder = await self._context.db.resolve_path(remote_path)
-            tmp = await self._context.db.get_children(folder)
-            children.extend(tmp)
+        children = (self._context.db.resolve_path(_) for _ in remote_paths)
+        children = await tg.multi(children)
+        children = (self._context.db.get_children(_) for _ in children)
+        children = await tg.multi(children)
+        children = [_1 for _0 in children for _1 in _0]
         children = sorted(children, key=lambda _: _.modified, reverse=True)
         return children
 
