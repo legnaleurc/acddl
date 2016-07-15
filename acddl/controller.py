@@ -460,7 +460,7 @@ class ACDDBController(object):
         try:
             r = await self._context.client.move_to_trash(node_id)
             DEBUG('acddl') << r
-            await self._worker.do(functools.partial(self._acd_db.insert_nodes, r))
+            await self._worker.do(functools.partial(self._acd_db.insert_node, r))
         except RequestError as e:
             EXCEPTION('acddl') << str(e)
             return False
