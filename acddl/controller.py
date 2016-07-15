@@ -166,6 +166,7 @@ class DownloadController(object):
 
     def _is_too_old(self, node):
         mtime = datetime_to_timestamp(node.modified)
+        INFO('acddl') << 'latest recyled' << self._last_recycle << 'node' << mtime
         return mtime <= self._last_recycle
 
     async def _reserve_space(self, node):
