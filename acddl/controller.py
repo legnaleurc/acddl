@@ -127,9 +127,11 @@ class DownloadController(object):
     async def _download_from(self, *remote_paths):
         await self._context.db.sync()
         children = await self._get_unified_children(remote_paths)
-        DEBUG('acdcli') << 'unified children count' << len(children)
+        DEBUG('acddl') << 'unified children count' << len(children)
         mtime = self._get_oldest_mtime()
+        DEBUG('acddl') << 'oldest mtime' << mtime
         children = list(filter(lambda _: _.modified > mtime, children))
+        DEBUG('acddl') << 'filtered children' << len(children)
         for child in children:
             task = self._make_download_task(child, need_mtime=True)
             self._worker.do_later(task)
