@@ -127,11 +127,8 @@ class DownloadController(object):
     async def _download_from(self, *remote_paths):
         await self._context.db.sync()
         children = await self._get_unified_children(remote_paths)
-        DEBUG('acddl') << 'unified children count' << len(children)
-        mtime = self._get_oldest_mtime()
-        DEBUG('acddl') << 'oldest mtime' << mtime
-        children = list(filter(lambda _: _.modified > mtime, children))
-        DEBUG('acddl') << 'filtered children' << len(children)
+        # mtime = self._get_oldest_mtime()
+        # children = list(filter(lambda _: _.modified > mtime, children))
         for child in children:
             task = self._make_download_task(child, need_mtime=True)
             self._worker.do_later(task)
@@ -167,10 +164,15 @@ class DownloadController(object):
         entries = sorted(entries, key=lambda _: _[1])
         return entries
 
-    def _is_too_old(self, node):
-        mtime = datetime_to_timestamp(node.modified)
-        INFO('acddl') << 'latest recyled' << self._last_recycle << 'node' << mtime
-        return mtime <= self._last_recycle
+    async def _is_too_old(self, node):
+        need_recyle = await self._need_recycle(node)
+        if not need_recyle:
+            return False
+        # mtime = datetime_to_timestamp(node.modified)
+        mtime = self._get_oldest_mtime()
+        # DEBUG('acddl') << 'latest recyled' << self._last_recycle << 'node' << mtime
+        # return mtime <= self._last_recycle
+        return node.modified <= mtime
 
     async def _reserve_space(self, node):
         entries = None

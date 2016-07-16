@@ -73,7 +73,6 @@ class AsyncWorker(object):
 
     async def _process(self):
         while True:
-            DEBUG('acddl') << 'pop:' << 'before' << len(self._queue._queue)
             task = await self._queue.get()
             rv = None
             exception = None
@@ -90,7 +89,6 @@ class AsyncWorker(object):
                 exception = e
             finally:
                 self._queue.task_done()
-                DEBUG('acddl') << 'pop:' << 'after' << len(self._queue._queue)
                 id_ = id(task)
                 future, done = self._tail.get(id_, (None, None))
                 if future or done:
