@@ -165,8 +165,7 @@ class DownloadController(object):
         return entries
 
     async def _is_too_old(self, node):
-        need_recyle = await self._need_recycle(node)
-        if not need_recyle:
+        if not await self._need_recycle(node):
             return False
         # mtime = datetime_to_timestamp(node.modified)
         mtime = self._get_oldest_mtime()
@@ -221,7 +220,7 @@ class DownloadController(object):
         if not node.is_available:
             return False
 
-        if need_mtime and self._is_too_old(node):
+        if need_mtime and await self._is_too_old(node):
             return False
 
         if node.is_folder:
