@@ -97,8 +97,8 @@ class TestAsyncWorker(ut.TestCase):
     def testRunOrder(self):
         first_task = self._createAsyncMock()
         side = []
-        second_task = TestTask(side, 2)
-        third_task = TestTask(side, 3)
+        second_task = FakeTask(side, 2)
+        third_task = FakeTask(side, 3)
         self._worker.do_later(first_task)
         self._worker.do_later(second_task)
         self._worker.do_later(third_task)
@@ -108,8 +108,8 @@ class TestAsyncWorker(ut.TestCase):
     def testFlush(self):
         first_task = self._createAsyncMock()
         side = []
-        second_task = TestTask(side, 1)
-        third_task = FlushTestTask(side, 1)
+        second_task = FakeTask(side, 1)
+        third_task = FlushFakeTask(side, 1)
         self._worker.do_later(first_task)
         self._worker.do_later(second_task)
         self._worker.do_later(third_task)
@@ -130,10 +130,18 @@ class TestAsyncWorker(ut.TestCase):
         return u.AsyncMock(return_value=42)
 
 
-class TestTask(worker.Task):
+class TestTask(ut.TestCase):
+
+    def testID(self):
+        a = worker.Task()
+        b = worker.Task()
+        self.assertLess(a.id_, b.id_)
+
+
+class FakeTask(worker.Task):
 
     def __init__(self, side, order):
-        super(TestTask, self).__init__()
+        super(FakeTask, self).__init__()
 
         self._side = side
         self._order = order
@@ -160,10 +168,10 @@ class TestTask(worker.Task):
         return -2
 
 
-class FlushTestTask(TestTask):
+class FlushFakeTask(FakeTask):
 
     def __init__(self, side, order):
-        super(FlushTestTask, self).__init__(side, order)
+        super(FlushFakeTask, self).__init__(side, order)
 
     def __call__(self):
         self._side.append(self)

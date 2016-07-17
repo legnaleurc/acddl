@@ -1,5 +1,6 @@
 import functools
 import inspect
+import itertools
 import threading
 
 from tornado import gen as tg, ioloop as ti, queues as tq
@@ -102,20 +103,23 @@ class AsyncWorker(object):
 @functools.total_ordering
 class Task(object):
 
+    _counter = itertools.count()
+
     def __init__(self, callable_=None):
         super(Task, self).__init__()
 
         self._callable = callable_
+        self._id = next(self._counter)
 
     def __eq__(self, that):
-        return self.priority == that.priority and id(self) == id(that)
+        return self.priority == that.priority and self.id_ == that.id_
 
     def __gt__(self, that):
         if self.priority < that.priority:
             return True
         if self.priority > that.priority:
             return False
-        return id(self) < id(that)
+        return self.id_ < that.id_
 
     def __call__(self):
         if not self._callable:
@@ -126,6 +130,10 @@ class Task(object):
     @property
     def priority(self):
         return 0
+
+    @property
+    def id_(self):
+        return self._id
 
 
 class FlushTasks(Exception):
