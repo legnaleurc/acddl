@@ -119,7 +119,7 @@ class Task(object):
             return True
         if self.priority > that.priority:
             return False
-        return self.id_ < that.id_
+        return self.id_ > that.id_
 
     def __call__(self):
         if not self._callable:
