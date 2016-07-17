@@ -76,18 +76,23 @@ class TestDownloadController(ut.TestCase):
 class TestDownloadTask(ut.TestCase):
 
     def testSort(self):
-        a = self._createDownloadTask(100, False)
-        b = self._createDownloadTask(200, False)
-        c = self._createDownloadTask(100, True)
-        d = self._createDownloadTask(200, True)
+        a = self._createLowDownloadTask(100)
+        b = self._createLowDownloadTask(200)
+        c = self._createHighDownloadTask()
+        d = self._createHighDownloadTask()
         e = sorted([a, b, c, d])
-        self.assertEqual(e, [b, a, d, c])
+        self.assertEqual(e, [c, d, b, a])
 
-    def _createDownloadTask(self, mtime, need_mtime):
+    def _createHighDownloadTask(self):
+        a = utm.Mock()
+        b = utm.Mock()
+        return ctrl.HighDownloadTask(a, b, a)
+
+    def _createLowDownloadTask(self, mtime):
         a = utm.Mock()
         b = utm.Mock()
         b.modified = mtime
-        return ctrl.DownloadTask(a, b, a, need_mtime)
+        return ctrl.LowDownloadTask(a, b, a)
 
 
 async def fake_resolve_path(fs, remote_path):

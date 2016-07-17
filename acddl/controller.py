@@ -109,7 +109,7 @@ class DownloadController(object):
 
     def download_later(self, node):
         self._ensure_alive()
-        task = self._make_download_task(node, need_mtime=False)
+        task = self._make_high_download_task(node)
         self._worker.do_later(task)
 
     def multiple_download_later(self, *remote_paths):
@@ -130,11 +130,14 @@ class DownloadController(object):
         # mtime = self._get_oldest_mtime()
         # children = list(filter(lambda _: _.modified > mtime, children))
         for child in children:
-            task = self._make_download_task(child, need_mtime=True)
+            task = self._make_low_download_task(child)
             self._worker.do_later(task)
 
-    def _make_download_task(self, node, need_mtime):
-        return DownloadTask(self._download, node, self._context.root, need_mtime)
+    def _make_high_download_task(self, node):
+        return HighDownloadTask(self._download, node, self._context.root)
+
+    def _make_low_download_task(self, node):
+        return LowDownloadTask(self._download, node, self._context.root)
 
     def _make_flush_task(self):
         return FlushTask()
@@ -289,7 +292,34 @@ class DownloadTask(worker.Task):
         super(DownloadTask, self).__init__(functools.partial(callable_, node, local_path, need_mtime))
 
         self._node = node
-        self._need_mtime = need_mtime
+
+
+class HighDownloadTask(DownloadTask):
+
+    def __init__(self, callable_, node, local_path):
+        super(HighDownloadTask, self).__init__(callable_, node, local_path, False)
+
+    def __gt__(self, that):
+        if self.priority < that.priority:
+            return True
+        if self.priority > that.priority:
+            return False
+        return id(self) < id(that)
+
+    def __eq__(self, that):
+        if self.priority != that.priority:
+            return False
+        return id(self) == id(that)
+
+    @property
+    def priority(self):
+        return 2
+
+
+class LowDownloadTask(DownloadTask):
+
+    def __init__(self, callable_, node, local_path):
+        super(LowDownloadTask, self).__init__(callable_, node, local_path, True)
 
     def __gt__(self, that):
         if self.priority < that.priority:
@@ -309,7 +339,7 @@ class DownloadTask(worker.Task):
 
     @property
     def priority(self):
-        return 1 if self._need_mtime else 2
+        return 1
 
 
 class FlushTask(worker.Task):
@@ -325,7 +355,7 @@ class FlushTask(worker.Task):
         return 65535
 
     def _filter(self, task):
-        return isinstance(task, DownloadTask) and task.priority == 1
+        return isinstance(task, LowDownloadTask)
 
 
 class ACDClientController(object):
