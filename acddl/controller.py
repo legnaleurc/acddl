@@ -293,23 +293,14 @@ class DownloadTask(worker.Task):
 
         self._node = node
 
+    def __repr__(self):
+        return 'DownloadTask(native_id={0}, id={1})'.format(hex(id(self)), self.id_)
+
 
 class HighDownloadTask(DownloadTask):
 
     def __init__(self, callable_, node, local_path):
         super(HighDownloadTask, self).__init__(callable_, node, local_path, False)
-
-    def __gt__(self, that):
-        if self.priority < that.priority:
-            return True
-        if self.priority > that.priority:
-            return False
-        return id(self) < id(that)
-
-    def __eq__(self, that):
-        if self.priority != that.priority:
-            return False
-        return id(self) == id(that)
 
     @property
     def priority(self):
