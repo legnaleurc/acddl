@@ -109,6 +109,7 @@ class Task(object):
         super(Task, self).__init__()
 
         self._callable = callable_
+        # FIXME atomic because GIL
         self._id = next(self._counter)
 
     def __eq__(self, that):
