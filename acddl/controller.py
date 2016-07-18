@@ -78,6 +78,7 @@ class RootController(object):
         self._context.dl.download_later(node)
 
     def abort_pending(self):
+        self._ensure_alive()
         self._worker.do_later(self._context.dl.abort)
 
     async def download_low(self, remote_paths):
@@ -93,6 +94,7 @@ class RootController(object):
             return [_.size for _ in nodes]
 
     def trash(self, node_id):
+        self._ensure_alive()
         self._worker.do_later(functools.partial(self._context.db.trash, node_id))
 
     async def sync_db(self):
