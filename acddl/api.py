@@ -47,7 +47,7 @@ class CacheHandler(web.RequestHandler):
             controller.abort_pending()
             return
 
-        await controller.update_cache_from(acd_paths)
+        await controller.download_low(acd_paths)
 
     async def put(self, id_):
         if id_ is None:
@@ -55,4 +55,4 @@ class CacheHandler(web.RequestHandler):
             return
 
         controller = self.settings['controller']
-        await controller.download(id_)
+        await controller.download_high(id_)

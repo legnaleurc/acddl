@@ -73,14 +73,14 @@ class RootController(object):
         nodes = await tg.multi(nodes)
         return nodes
 
-    async def download(self, node_id):
+    async def download_high(self, node_id):
         node = await self._context.db.get_node(node_id)
         self._context.dl.download_later(node)
 
     def abort_pending(self):
         self._worker.do_later(self._context.dl.abort)
 
-    async def update_cache_from(self, remote_paths):
+    async def download_low(self, remote_paths):
         await self._context.dl.multiple_download_later(*remote_paths)
 
     async def compare(self, node_ids):
