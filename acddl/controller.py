@@ -114,6 +114,7 @@ class DownloadController(object):
 
     def multiple_download_later(self, *remote_paths):
         self._ensure_alive()
+        self.abort()
         task = functools.partial(self._download_from, *remote_paths)
         self._worker.do_later(task)
 
