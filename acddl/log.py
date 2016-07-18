@@ -29,6 +29,7 @@ def setup_logger(file_path):
         'tornado.access',
         'tornado.application',
         'tornado.general',
+        'requests.packages.urllib3.connectionpool',
         'acddl',))
 
 
