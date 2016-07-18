@@ -39,14 +39,15 @@ class CacheHandler(web.RequestHandler):
         result = json.dumps(result)
         self.write(result)
 
-    def post(self):
+    async def post(self):
         controller = self.settings['controller']
 
         acd_paths = self.get_arguments('acd_paths[]')
         if not acd_paths:
             controller.abort_pending()
+            return
 
-        controller.update_cache_from(acd_paths)
+        await controller.update_cache_from(acd_paths)
 
     async def put(self, id_):
         if id_ is None:

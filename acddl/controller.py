@@ -57,8 +57,10 @@ class RootController(object):
 
     def __init__(self, cache_folder):
         self._context = Context(cache_folder)
+        self._worker = worker.AsyncWorker()
 
     def close(self, signum, frame):
+        self._worker.stop()
         self._context.close()
         main_loop = ti.IOLoop.instance()
         main_loop.stop()
@@ -76,10 +78,10 @@ class RootController(object):
         self._context.dl.download_later(node)
 
     def abort_pending(self):
-        self._context.dl.abort()
+        self._worker.do_later(self._context.dl.abort)
 
-    def update_cache_from(self, remote_paths):
-        self._context.dl.multiple_download_later(*remote_paths)
+    async def update_cache_from(self, remote_paths):
+        await self._context.dl.multiple_download_later(*remote_paths)
 
     async def compare(self, node_ids):
         nodes = (self._context.db.get_node(_) for _ in node_ids)
@@ -95,6 +97,9 @@ class RootController(object):
 
     async def sync_db(self):
         await self._context.db.sync()
+
+    def _ensure_alive(self):
+        self._worker.start()
 
 
 class DownloadController(object):
@@ -112,15 +117,15 @@ class DownloadController(object):
         task = self._make_high_download_task(node)
         self._worker.do_later(task)
 
-    def multiple_download_later(self, *remote_paths):
+    async def multiple_download_later(self, *remote_paths):
         self._ensure_alive()
-        self.abort()
+        await self.abort()
         task = functools.partial(self._download_from, *remote_paths)
         self._worker.do_later(task)
 
-    def abort(self):
+    async def abort(self):
         task = self._make_flush_task()
-        self._worker.do_later(task)
+        await self._worker.do(task)
 
     def _ensure_alive(self):
         self._worker.start()

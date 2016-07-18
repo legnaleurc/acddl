@@ -23,9 +23,11 @@ class TestDownloadController(ut.TestCase):
     def testMultipleDownloadLater(self, FakeAsyncWorker):
         context = utm.Mock()
         dc = ctrl.DownloadController(context)
-        dc.multiple_download_later('123', '456')
+        dc._worker.do = u.AsyncMock()
+        u.async_call(dc.multiple_download_later, '123', '456')
         dc._worker.start.assert_called_once_with()
-        assert dc._worker.do_later.call_count == 2
+        assert dc._worker.do.call_count == 1
+        assert dc._worker.do_later.call_count == 1
 
     @utm.patch('acddl.worker.AsyncWorker', autospec=True)
     def testDownloadFrom(self, FakeAsyncWorker):
