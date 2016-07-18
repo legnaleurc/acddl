@@ -92,8 +92,8 @@ class RootController(object):
         else:
             return [_.size for _ in nodes]
 
-    async def trash(self, node_id):
-        return await self._context.db.trash(node_id)
+    def trash(self, node_id):
+        self._worker.do_later(functools.partial(self._context.db.trash, node_id))
 
     async def sync_db(self):
         await self._context.db.sync()

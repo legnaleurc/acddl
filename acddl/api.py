@@ -19,13 +19,13 @@ class NodesHandler(web.RequestHandler):
         controller = self.settings['controller']
         await controller.sync_db()
 
-    async def delete(self, id_):
+    def delete(self, id_):
         if id_ is None:
             self.set_status(400)
             return
 
         controller = self.settings['controller']
-        await controller.trash(id_)
+        controller.trash(id_)
 
 
 class CacheHandler(web.RequestHandler):
