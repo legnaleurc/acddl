@@ -527,14 +527,14 @@ def update_mtime(full_path, s_mtime):
     return True
 
 
-def human_readable(bytes):
+def human_readable(bytes_):
     units = ['B', 'KB', 'MB', 'GB']
     for unit in units:
-        if bytes < 1024:
-            return bytes, unit
-        bytes /= 1024
+        if bytes_ < 1024:
+            return bytes_, unit
+        bytes_ /= 1024
     else:
-        return bytes * 1024, units[-1]
+        return bytes_ * 1024, units[-1]
 
 
 def check_existed(node, full_path):
