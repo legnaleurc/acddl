@@ -202,7 +202,7 @@ class DownloadController(object):
         required_space = await self._get_node_size(node)
         hfs, fsu = human_readable(free_space)
         hrs, rsu = human_readable(required_space)
-        INFO('acddl') << 'free space: {0} {1}, required: {2} {3}'.format(hfs, fsu, hrs, rsu)
+        INFO('acddl') << 'free space: {0:.2f} {1}, required: {2:.2f} {3}'.format(hfs, fsu, hrs, rsu)
         return free_space <= required_space
 
     # in bytes
