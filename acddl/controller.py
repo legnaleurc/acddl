@@ -354,7 +354,7 @@ class FlushTask(worker.Task):
         return 65535
 
     def _filter(self, task):
-        return isinstance(task, LowDownloadTask)
+        return not isinstance(task, LowDownloadTask)
 
 
 class ACDClientController(object):
