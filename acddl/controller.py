@@ -73,16 +73,17 @@ class RootController(object):
         nodes = await tg.multi(nodes)
         return nodes
 
-    async def download_high(self, node_id):
-        node = await self._context.db.get_node(node_id)
-        self._context.dl.download_later(node)
+    def download_high(self, node_id):
+        self._ensure_alive()
+        self._worker.do_later(functools.partial(self._download_glue, node_id))
 
     def abort_pending(self):
         self._ensure_alive()
         self._worker.do_later(self._context.dl.abort)
 
-    async def download_low(self, remote_paths):
-        await self._context.dl.multiple_download_later(*remote_paths)
+    def download_low(self, remote_paths):
+        self._ensure_alive()
+        self._worker.do_later(functools.partial(self._context.dl.multiple_download_later, *remote_paths))
 
     async def compare(self, node_ids):
         nodes = (self._context.db.get_node(_) for _ in node_ids)
@@ -102,6 +103,10 @@ class RootController(object):
 
     def _ensure_alive(self):
         self._worker.start()
+
+    async def _download_glue(self, node_id):
+        node = await self._context.db.get_node(node_id)
+        self._context.dl.download_later(node)
 
 
 class DownloadController(object):
