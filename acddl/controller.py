@@ -222,7 +222,7 @@ class DownloadController(object):
         children = await tg.multi(children)
         return sum(children)
 
-    await def _check_exists(self, node, full_path):
+    async def _check_exists(self, node, full_path):
         if not node.is_folder:
             return check_existed(node, full_path)
 
@@ -244,7 +244,7 @@ class DownloadController(object):
         full_path = local_path / node.name
 
         try:
-            if self._check_exists(node, full_path):
+            if await self._check_exists(node, full_path):
                 return True
         except OSError as e:
             if e.errno == 36:
