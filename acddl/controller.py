@@ -175,9 +175,7 @@ class DownloadController(object):
         entries = sorted(entries, key=lambda _: _[1])
         return entries
 
-    async def _is_too_old(self, node):
-        if not await self._need_recycle(node):
-            return False
+    def _is_too_old(self, node):
         # mtime = datetime_to_timestamp(node.modified)
         mtime = self._get_oldest_mtime()
         # DEBUG('acddl') << 'latest recyled' << self._last_recycle << 'node' << mtime
@@ -224,15 +222,49 @@ class DownloadController(object):
         children = await tg.multi(children)
         return sum(children)
 
+    await def _check_exists(self, node, full_path):
+        if not node.is_folder:
+            return check_existed(node, full_path)
+
+        full_path /= node.name
+        children = await self._context.db.get_children(node)
+        for child in children:
+            ok = await self._check_exists(child, full_path)
+            if not ok:
+                return False
+        return True
+
     async def _download(self, node, local_path, need_mtime):
-        local_path = local_path if local_path else pathlib.Path()
-        full_path = local_path / node.name
+        if not node or not local_path:
+            return False
 
         if not node.is_available:
             return False
 
-        if need_mtime and await self._is_too_old(node):
+        full_path = local_path / node.name
+
+        try:
+            if self._check_exists(node, full_path):
+                return True
+        except OSError as e:
+            if e.errno == 36:
+                WARNING('acddl') << 'download failed: file name too long'
+                return False
+            # fatal unknown error
+            raise
+
+        if await self._need_recycle(node):
+            if need_mtime and self._is_too_old(node):
+                return False
+            self._reserve_space(node)
+
+        return await self._download_glue(node, local_path, need_mtime)
+
+    async def _download_glue(self, node, local_path, need_mtime):
+        if not node.is_available:
             return False
+
+        full_path = local_path / node.name
 
         if node.is_folder:
             ok = await self._download_folder(node, full_path, need_mtime)
@@ -256,18 +288,13 @@ class DownloadController(object):
 
         children = await self._context.db.get_children(node)
         for child in children:
-            ok = await self._download(child, full_path, need_mtime)
+            ok = await self._download_glue(child, full_path, need_mtime)
             if not ok:
                 return False
 
         return True
 
     async def _download_file(self, node, local_path, full_path):
-        if check_existed(node, full_path):
-            return True
-
-        await self._reserve_space(node)
-
         # retry until succeed
         while True:
             try:
