@@ -248,6 +248,8 @@ class DownloadController(object):
 
         full_path = local_path / node.name
 
+        DEBUG('acddl') << 'checking' << full_path
+
         try:
             if await self._check_exists(node, full_path):
                 return True
@@ -258,8 +260,11 @@ class DownloadController(object):
             # fatal unknown error
             raise
 
+        DEBUG('acddl') << 'different'
+
         if await self._need_recycle(node):
             if need_mtime and self._is_too_old(node):
+                DEBUG('acddl') << 'too old'
                 return False
             self._reserve_space(node)
 
