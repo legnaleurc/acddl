@@ -228,6 +228,7 @@ class DownloadController(object):
         return sum(children)
 
     async def _check_exists(self, node, full_path):
+        DEBUG('acddl') << 'enter' << full_path << 'for' << node.name
         if not node.is_folder:
             return check_existed(node, full_path)
 
