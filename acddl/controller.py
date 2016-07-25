@@ -576,6 +576,7 @@ def human_readable(bytes_):
 
 def check_existed(node, full_path):
     if not full_path.is_file():
+        assert not full_path.is_dir(), 'WTF?' + str(full_path)
         return False
 
     INFO('acddl') << 'checking existed:' << full_path
