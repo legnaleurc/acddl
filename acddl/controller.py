@@ -230,9 +230,9 @@ class DownloadController(object):
     async def _check_exists(self, node, full_path):
         DEBUG('acddl') << 'enter' << full_path << 'for' << node.name
         if not node.is_folder:
-            return check_existed(node, full_path)
+            return check_existed(node, full_path / node.name)
 
-        full_path /= node.name
+        #full_path /= node.name
         children = await self._context.db.get_children(node)
         for child in children:
             ok = await self._check_exists(child, full_path)
@@ -577,7 +577,6 @@ def human_readable(bytes_):
 
 def check_existed(node, full_path):
     if not full_path.is_file():
-        assert not full_path.is_dir(), 'WTF?' + str(full_path)
         return False
 
     INFO('acddl') << 'checking existed:' << full_path
