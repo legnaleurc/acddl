@@ -54,6 +54,10 @@ class PathMock(utm.Mock):
         fake_os = ffs.FakeOsModule(self._fs)
         return fake_os.path.isfile(self._path)
 
+    def is_dir(self):
+        fake_os = ffs.FakeOsModule(self._fs)
+        return fake_os.path.isdir(self._path)
+
     def unlink(self):
         fake_os = ffs.FakeOsModule(self._fs)
         return fake_os.unlink(self._path)
