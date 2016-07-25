@@ -235,7 +235,7 @@ class DownloadController(object):
         #full_path /= node.name
         children = await self._context.db.get_children(node)
         for child in children:
-            ok = await self._check_exists(child, full_path)
+            ok = await self._check_exists(child, full_path / node.name)
             if not ok:
                 return False
         return True
@@ -247,12 +247,12 @@ class DownloadController(object):
         if not node.is_available:
             return False
 
-        full_path = local_path / node.name
+        #full_path = local_path / node.name
 
-        DEBUG('acddl') << 'checking' << full_path
+        #DEBUG('acddl') << 'checking' << full_path
 
         try:
-            if await self._check_exists(node, full_path):
+            if await self._check_exists(node, local_path):
                 return True
         except OSError as e:
             if e.errno == 36:
