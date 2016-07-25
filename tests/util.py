@@ -62,6 +62,10 @@ class PathMock(utm.Mock):
         fake_os = ffs.FakeOsModule(self._fs)
         return fake_os.unlink(self._path)
 
+    def open(self, mode):
+        fake_open = ffs.FakeFileOpen(self._fs)
+        return fake_open(self._path, mode)
+
     def __truediv__(self, name):
         return PathMock(self._fs, self._path, name)
 

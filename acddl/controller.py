@@ -227,16 +227,20 @@ class DownloadController(object):
         children = await tg.multi(children)
         return sum(children)
 
-    async def _check_exists(self, node, full_path):
+    async def _check_existence(self, node, full_path):
         full_path /= node.name
 
         if node.is_folder:
             children = await self._context.db.get_children(node)
             for child in children:
-                ok = await self._check_exists(child, full_path)
+                ok = await self._check_existence(child, full_path)
                 if not ok:
                     return False
             return True
+
+        if not full_path.is_file():
+            # is not file or does not even exists
+            return False
 
         INFO('acddl') << 'checking existed:' << full_path
         local = md5sum(full_path)
@@ -258,7 +262,7 @@ class DownloadController(object):
             return False
 
         try:
-            if await self._check_exists(node, local_path):
+            if await self._check_existence(node, local_path):
                 return True
         except OSError as e:
             if e.errno == 36:
