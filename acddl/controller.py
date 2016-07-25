@@ -228,17 +228,27 @@ class DownloadController(object):
         return sum(children)
 
     async def _check_exists(self, node, full_path):
-        DEBUG('acddl') << 'enter' << full_path << 'for' << node.name
-        if not node.is_folder:
-            return check_existed(node, full_path / node.name)
+        full_path /= node.name
 
-        #full_path /= node.name
-        children = await self._context.db.get_children(node)
-        for child in children:
-            ok = await self._check_exists(child, full_path / node.name)
-            if not ok:
-                return False
-        return True
+        if node.is_folder:
+            children = await self._context.db.get_children(node)
+            for child in children:
+                ok = await self._check_exists(child, full_path)
+                if not ok:
+                    return False
+            return True
+
+        INFO('acddl') << 'checking existed:' << full_path
+        local = md5sum(full_path)
+        remote = node.md5
+        if local == remote:
+            INFO('acddl') << 'skip same file'
+            return True
+
+        INFO('acddl') << 'expected:' << remote << 'got:' << local
+        INFO('acddl') << 'remove' << full_path
+        full_path.unlink()
+        return False
 
     async def _download(self, node, local_path, need_mtime):
         if not node or not local_path:
@@ -246,10 +256,6 @@ class DownloadController(object):
 
         if not node.is_available:
             return False
-
-        #full_path = local_path / node.name
-
-        #DEBUG('acddl') << 'checking' << full_path
 
         try:
             if await self._check_exists(node, local_path):
@@ -573,19 +579,3 @@ def human_readable(bytes_):
         bytes_ /= 1024
     else:
         return bytes_ * 1024, units[-1]
-
-
-def check_existed(node, full_path):
-    if not full_path.is_file():
-        return False
-
-    INFO('acddl') << 'checking existed:' << full_path
-    local = md5sum(full_path)
-    remote = node.md5
-    if local == remote:
-        INFO('acddl') << 'skip same file'
-        return True
-
-    INFO('acddl') << 'md5 mismatch'
-    full_path.unlink()
-    return False
