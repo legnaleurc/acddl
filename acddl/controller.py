@@ -277,7 +277,7 @@ class DownloadController(object):
             if need_mtime and self._is_too_old(node):
                 DEBUG('acddl') << 'too old'
                 return False
-            self._reserve_space(node)
+            await self._reserve_space(node)
 
         return await self._download_glue(node, local_path, need_mtime)
 
