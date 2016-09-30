@@ -13,6 +13,10 @@ class NodesHandler(web.RequestHandler):
 
         controller = self.settings['controller']
         nodes = await controller.search(pattern)
+        nodes = [[k, v] for k, v in nodes.items()]
+        nodes = sorted(nodes, key=lambda _: _[1])
+        # iDontCare
+        nodes = json.dumps(nodes)
         self.write(nodes)
 
     async def post(self):
