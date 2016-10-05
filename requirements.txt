@@ -1,2 +1,2 @@
--e git+https://github.com/yadayada/acd_cli.git#egg=acdcli
+git+https://github.com/yadayada/acd_cli.git#egg=acdcli
 tornado
