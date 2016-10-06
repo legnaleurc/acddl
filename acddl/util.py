@@ -30,6 +30,7 @@ def main(args=None):
         'tornado.application',
         'tornado.general',
         'requests.packages.urllib3.connectionpool',
+        'wcpan.worker',
         'acddl',
     ))
     main_loop = ioloop.IOLoop.instance()
