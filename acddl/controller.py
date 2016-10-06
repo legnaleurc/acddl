@@ -455,7 +455,7 @@ class ACDDBController(object):
 
     def __init__(self, context):
         self._context = context
-        self._worker = worker.AsyncWorker()
+        self._worker = ww.AsyncWorker()
         self._acd_db = None
 
     def close(self):
