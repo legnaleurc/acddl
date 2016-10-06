@@ -3,9 +3,9 @@ import signal
 import sys
 
 from tornado import ioloop, web, httpserver
+from wcpan.logger import setup as setup_logger, INFO
 
 from . import api
-from .log import setup_logger, INFO
 from .controller import RootController
 
 
@@ -25,7 +25,13 @@ def main(args=None):
         args = sys.argv
 
     args = parse_args(args[1:])
-    setup_logger('/tmp/acddl.log')
+    loggers = setup_logger('/tmp/acddl.log', (
+        'tornado.access',
+        'tornado.application',
+        'tornado.general',
+        'requests.packages.urllib3.connectionpool',
+        'acddl',
+    ))
     main_loop = ioloop.IOLoop.instance()
 
     controller = RootController(args.root)
