@@ -10,7 +10,7 @@ from . import util as u
 
 class TestDownloadController(ut.TestCase):
 
-    @utm.patch('tornado_multithread.AsyncWorker', autospec=True)
+    @utm.patch('wcpan.worker.AsyncWorker', autospec=True)
     def testDownloadLater(self, FakeAsyncWorker):
         context = utm.Mock()
         dc = ctrl.DownloadController(context)
@@ -19,7 +19,7 @@ class TestDownloadController(ut.TestCase):
         dc._worker.start.assert_called_once_with()
         dc._worker.do_later.assert_called_once_with(utm.ANY)
 
-    @utm.patch('tornado_multithread.AsyncWorker', autospec=True)
+    @utm.patch('wcpan.worker.AsyncWorker', autospec=True)
     def testMultipleDownloadLater(self, FakeAsyncWorker):
         context = utm.Mock()
         dc = ctrl.DownloadController(context)
@@ -29,7 +29,7 @@ class TestDownloadController(ut.TestCase):
         assert dc._worker.do.call_count == 1
         assert dc._worker.do_later.call_count == 1
 
-    @utm.patch('tornado_multithread.AsyncWorker', autospec=True)
+    @utm.patch('wcpan.worker.AsyncWorker', autospec=True)
     def testDownloadFrom(self, FakeAsyncWorker):
         lfs = u.create_fake_local_file_system()
         rfs = u.create_fake_remote_file_system()
@@ -48,7 +48,7 @@ class TestDownloadController(ut.TestCase):
 
     @utm.patch('os.utime')
     @utm.patch('os.statvfs')
-    @utm.patch('tornado_multithread.AsyncWorker', autospec=True)
+    @utm.patch('wcpan.worker.AsyncWorker', autospec=True)
     def testDownload(self, FakeAsyncWorker, fake_statvfs, fake_utime):
         lfs = u.create_fake_local_file_system()
         rfs = u.create_fake_remote_file_system()

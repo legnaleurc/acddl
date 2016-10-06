@@ -14,9 +14,8 @@ from acdcli.cache import db as DB
 from acdcli.utils import hashing
 from acdcli.utils.time import datetime_to_timestamp
 from tornado import ioloop as ti, gen as tg
-import tornado_multithread as tm
-
-from .log import ERROR, WARNING, INFO, EXCEPTION, DEBUG
+import wcpan.worker as ww
+from wcpan.logger import ERROR, WARNING, INFO, EXCEPTION, DEBUG
 
 
 class Context(object):
@@ -57,7 +56,7 @@ class RootController(object):
 
     def __init__(self, cache_folder):
         self._context = Context(cache_folder)
-        self._worker = tm.AsyncWorker()
+        self._worker = ww.AsyncWorker()
 
     def close(self, signum, frame):
         self._worker.stop()
@@ -113,7 +112,7 @@ class DownloadController(object):
 
     def __init__(self, context):
         self._context = context
-        self._worker = tm.AsyncWorker()
+        self._worker = ww.AsyncWorker()
         self._last_recycle = 0
 
     def close(self):
@@ -342,7 +341,7 @@ class DownloadController(object):
         return True
 
 
-class DownloadTask(tm.Task):
+class DownloadTask(ww.Task):
 
     def __init__(self, callable_, node, local_path, need_mtime):
         super(DownloadTask, self).__init__(functools.partial(callable_, node, local_path, need_mtime))
@@ -389,13 +388,13 @@ class LowDownloadTask(DownloadTask):
         return 1
 
 
-class FlushTask(tm.Task):
+class FlushTask(ww.Task):
 
     def __init__(self):
         super(FlushTask, self).__init__()
 
     def __call__(self):
-        raise tm.FlushTasks(self._filter)
+        raise ww.FlushTasks(self._filter)
 
     @property
     def priority(self):
@@ -409,7 +408,7 @@ class ACDClientController(object):
 
     def __init__(self, context):
         self._context = context
-        self._worker = tm.AsyncWorker()
+        self._worker = ww.AsyncWorker()
         self._acd_client = None
 
     def close(self):
