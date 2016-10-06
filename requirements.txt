@@ -1,3 +1,4 @@
 git+https://github.com/yadayada/acd_cli.git#egg=acdcli
-git+https://github.com/legnaleurc/tornado_multithread.git#egg=tornado_multithread
 tornado
+wcpan.logger
+wcpan.worker
