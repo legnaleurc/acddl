@@ -1,4 +1,5 @@
 git+https://github.com/yadayada/acd_cli.git#egg=acdcli
 tornado
+wcpan.acd
 wcpan.logger
 wcpan.worker

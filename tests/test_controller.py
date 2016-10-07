@@ -35,10 +35,10 @@ class TestDownloadController(ut.TestCase):
         rfs = u.create_fake_remote_file_system()
         with utm.patch('pathlib.Path', new_callable=functools.partial(u.metapathmock, lfs)) as FakePath:
             context = utm.Mock()
-            # mock acd_db
-            context.db.sync = u.AsyncMock()
-            context.db.resolve_path = functools.partial(fake_resolve_path, rfs)
-            context.db.get_children = functools.partial(fake_get_children, rfs)
+            # mock acd
+            context.acd.sync = u.AsyncMock()
+            context.acd.resolve_path = functools.partial(fake_resolve_path, rfs)
+            context.acd.get_children = functools.partial(fake_get_children, rfs)
             # mock root
             context.root = FakePath('/local')
 
@@ -54,11 +54,10 @@ class TestDownloadController(ut.TestCase):
         rfs = u.create_fake_remote_file_system()
         with utm.patch('pathlib.Path', new_callable=functools.partial(u.metapathmock, lfs)) as FakePath:
             context = utm.Mock()
-            # mock client
-            context.client.download_node = fake_download_node
-            # mock db
-            context.db.get_children = functools.partial(fake_get_children, rfs)
-            context.db.get_path = functools.partial(fake_get_path, rfs)
+            # mock acd
+            context.acd.download_node = fake_download_node
+            context.acd.get_children = functools.partial(fake_get_children, rfs)
+            context.acd.get_path = functools.partial(fake_get_path, rfs)
             # mock root
             context.root = FakePath('/local')
             # mock os
