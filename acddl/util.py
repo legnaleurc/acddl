@@ -25,7 +25,7 @@ def main(args=None):
         args = sys.argv
 
     args = parse_args(args[1:])
-    loggers = setup_logger('/tmp/acddl.log', (
+    loggers = setup_logger((
         'tornado.access',
         'tornado.application',
         'tornado.general',
@@ -33,7 +33,7 @@ def main(args=None):
         'wcpan.acd',
         'wcpan.worker',
         'acddl',
-    ))
+    ), '/tmp/acddl.log')
     main_loop = ioloop.IOLoop.instance()
 
     controller = RootController(args.root)
