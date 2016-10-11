@@ -126,6 +126,10 @@ class DownloadController(object):
         task = self._make_flush_task()
         await self._worker.do(task)
 
+    def _abort_later(self):
+        task = self._make_flush_task()
+        self._worker.do_later(task)
+
     def _ensure_alive(self):
         self._worker.start()
 
@@ -268,6 +272,7 @@ class DownloadController(object):
         if await self._need_recycle(node):
             if need_mtime and self._is_too_old(node):
                 DEBUG('acddl') << 'too old'
+                self._abort_later()
                 return False
             await self._reserve_space(node)
 
