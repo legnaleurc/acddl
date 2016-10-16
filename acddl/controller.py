@@ -123,12 +123,10 @@ class DownloadController(object):
         self._worker.do_later(task)
 
     async def abort(self):
-        task = self._make_flush_task()
-        await self._worker.do(task)
+        await self._worker.flush(lambda _: isinstance(_, LowDownloadTask))
 
     def _abort_later(self):
-        task = self._make_flush_task()
-        self._worker.do_later(task)
+        self._worker.flush_later(lambda _: isinstance(_, LowDownloadTask))
 
     def _ensure_alive(self):
         self._worker.start()
@@ -147,9 +145,6 @@ class DownloadController(object):
 
     def _make_low_download_task(self, node):
         return LowDownloadTask(self._download, node, self._context.root)
-
-    def _make_flush_task(self):
-        return FlushTask()
 
     async def _get_unified_children(self, remote_paths):
         children = (self._context.acd.resolve_path(_) for _ in remote_paths)
@@ -349,6 +344,12 @@ class DownloadTask(ww.Task):
     def __repr__(self):
         return 'DownloadTask(native_id={0}, id={1})'.format(hex(id(self)), self.id_)
 
+    def __eq__(self, that):
+        return self.equal(that)
+
+    def __lt__(self, that):
+        return self.higher_then(that)
+
 
 class HighDownloadTask(DownloadTask):
 
@@ -365,41 +366,25 @@ class LowDownloadTask(DownloadTask):
     def __init__(self, callable_, node, local_path):
         super(LowDownloadTask, self).__init__(callable_, node, local_path, True)
 
-    def __gt__(self, that):
-        if self.priority < that.priority:
-            return True
-        if self.priority > that.priority:
-            return False
-        if not self._node or not that._node:
-            return False
-        return self._node.modified < that._node.modified
+    @property
+    def priority(self):
+        return 1
 
-    def __eq__(self, that):
+    def equal(self, that):
         if self.priority != that.priority:
             return False
         if self._node and that._node:
             return self._node.modified == that._node.modified
         return self._node == that._node
 
-    @property
-    def priority(self):
-        return 1
-
-
-class FlushTask(ww.Task):
-
-    def __init__(self):
-        super(FlushTask, self).__init__()
-
-    def __call__(self):
-        raise ww.FlushTasks(self._filter)
-
-    @property
-    def priority(self):
-        return 65535
-
-    def _filter(self, task):
-        return not isinstance(task, LowDownloadTask)
+    def higher_then(self, that):
+        if self.priority > that.priority:
+            return True
+        if self.priority < that.priority:
+            return False
+        if not self._node or not that._node:
+            return super(LowDownloadTask, self).higher_then(that)
+        return self._node.modified > that._node.modified
 
 
 def md5sum(full_path):

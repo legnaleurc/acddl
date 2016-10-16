@@ -3,7 +3,7 @@ from unittest import mock as utm
 import datetime as dt
 import hashlib
 
-from tornado import ioloop as ti, gen as tg
+from tornado import gen as tg
 from pyfakefs import fake_filesystem as ffs
 
 
@@ -109,10 +109,6 @@ class NodeMock(utm.Mock):
     def md5(self):
         fake_open = ffs.FakeFileOpen(self._fs)
         return get_md5(fake_open, self._path)
-
-
-def async_call(fn, *args, **kwargs):
-    return ti.IOLoop.instance().run_sync(functools.partial(fn, *args, **kwargs))
 
 
 def create_fake_local_file_system():

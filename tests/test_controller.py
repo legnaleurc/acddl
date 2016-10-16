@@ -3,12 +3,13 @@ import unittest as ut
 from unittest import mock as utm
 
 from pyfakefs import fake_filesystem as ffs
+from tornado import testing as tt
 
 from acddl import controller as ctrl
 from . import util as u
 
 
-class TestDownloadController(ut.TestCase):
+class TestDownloadController(tt.AsyncTestCase):
 
     @utm.patch('wcpan.worker.AsyncWorker', autospec=True)
     def testDownloadLater(self, FakeAsyncWorker):
@@ -20,16 +21,18 @@ class TestDownloadController(ut.TestCase):
         dc._worker.do_later.assert_called_once_with(utm.ANY)
 
     @utm.patch('wcpan.worker.AsyncWorker', autospec=True)
+    @tt.gen_test
     def testMultipleDownloadLater(self, FakeAsyncWorker):
         context = utm.Mock()
         dc = ctrl.DownloadController(context)
         dc._worker.do = u.AsyncMock()
-        u.async_call(dc.multiple_download_later, '123', '456')
+        dc._worker.flush = u.AsyncMock()
+        yield dc.multiple_download_later('123', '456')
         dc._worker.start.assert_called_once_with()
-        assert dc._worker.do.call_count == 1
-        assert dc._worker.do_later.call_count == 1
+        self.assertEqual(dc._worker.flush.call_count, 1)
 
     @utm.patch('wcpan.worker.AsyncWorker', autospec=True)
+    @tt.gen_test
     def testDownloadFrom(self, FakeAsyncWorker):
         lfs = u.create_fake_local_file_system()
         rfs = u.create_fake_remote_file_system()
@@ -43,12 +46,13 @@ class TestDownloadController(ut.TestCase):
             context.root = FakePath('/local')
 
             dc = ctrl.DownloadController(context)
-            u.async_call(dc._download_from, '/remote')
-            assert dc._worker.do_later.call_count == 2
+            yield dc._download_from('/remote')
+            self.assertEqual(dc._worker.do_later.call_count, 2)
 
     @utm.patch('os.utime')
     @utm.patch('os.statvfs')
     @utm.patch('wcpan.worker.AsyncWorker', autospec=True)
+    @tt.gen_test
     def testDownload(self, FakeAsyncWorker, fake_statvfs, fake_utime):
         lfs = u.create_fake_local_file_system()
         rfs = u.create_fake_remote_file_system()
@@ -67,11 +71,11 @@ class TestDownloadController(ut.TestCase):
             vfs.f_bavail = 10 * 1024 ** 3
 
             dc = ctrl.DownloadController(context)
-            u.async_call(dc._download, u.NodeMock(rfs, '/remote/folder_2'), context.root, True)
+            yield dc._download(u.NodeMock(rfs, '/remote/folder_2'), context.root, True)
 
             l_fake_os = ffs.FakeOsModule(lfs)
-            assert l_fake_os.path.isdir('/local/folder_2')
-            assert l_fake_os.path.isfile('/local/folder_2/file_4.txt')
+            self.assertTrue(l_fake_os.path.isdir('/local/folder_2'))
+            self.assertTrue(l_fake_os.path.isfile('/local/folder_2/file_4.txt'))
 
 
 class TestDownloadTask(ut.TestCase):
