@@ -249,9 +249,9 @@ class DownloadController(object):
 
         try:
             if await self._check_existence(node, local_path):
-                if need_mtime:
+                if not need_mtime:
                     full_path = local_path / node.name
-                    ok = preserve_mtime_by_node(full_path, node)
+                    ok = update_mtime(full_path, dt.datetime.now().timestamp())
                     return ok
                 return True
         except OSError as e:
