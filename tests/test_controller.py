@@ -91,6 +91,7 @@ class TestDownloadTask(ut.TestCase):
     def _createHighDownloadTask(self):
         a = utm.Mock()
         b = utm.Mock()
+        b.modified = 0
         return ctrl.HighDownloadTask(a, b, a)
 
     def _createLowDownloadTask(self, mtime):

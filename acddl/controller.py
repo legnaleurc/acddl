@@ -339,11 +339,24 @@ class DownloadTask(ww.Task):
     def __repr__(self):
         return 'DownloadTask(native_id={0}, id={1})'.format(hex(id(self)), self.id_)
 
-    def __eq__(self, that):
-        return self.equal(that)
+    def higher_then(self, that):
+        # if that is not a DownloadTask, fallback to base class
+        if not isinstance(that, DownloadTask):
+            return super(DownloadTask, self).higher_then(that)
+        # compare priority first
+        if self.priority > that.priority:
+            return True
+        if self.priority < that.priority:
+            return False
+        # different policy
+        rv = self.compare_node(that)
+        if rv is not None:
+            return rv
+        # oldest task download first
+        return self.id_ < that.id_
 
-    def __lt__(self, that):
-        return self.higher_then(that)
+    def compare_node(self, that):
+        return None
 
 
 class HighDownloadTask(DownloadTask):
@@ -365,21 +378,13 @@ class LowDownloadTask(DownloadTask):
     def priority(self):
         return 1
 
-    def equal(self, that):
-        if self.priority != that.priority:
-            return False
-        if self._node and that._node:
-            return self._node.modified == that._node.modified
-        return self._node == that._node
-
-    def higher_then(self, that):
-        if self.priority > that.priority:
+    def compare_node(self, that):
+        # latest file download first
+        if self._node.modified > that._node.modified:
             return True
-        if self.priority < that.priority:
+        if self._node.modified < that._node.modified:
             return False
-        if not self._node or not that._node:
-            return super(LowDownloadTask, self).higher_then(that)
-        return self._node.modified > that._node.modified
+        return None
 
 
 def md5sum(full_path):
