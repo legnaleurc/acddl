@@ -134,8 +134,6 @@ class DownloadController(object):
     async def _download_from(self, *remote_paths):
         await self._context.acd.sync()
         children = await self._get_unified_children(remote_paths)
-        # mtime = self._get_oldest_mtime()
-        # children = list(filter(lambda _: _.modified > mtime, children))
         for child in children:
             task = self._make_low_download_task(child)
             self._worker.do_later(task)
@@ -172,10 +170,7 @@ class DownloadController(object):
         return entries
 
     def _is_too_old(self, node):
-        # mtime = datetime_to_timestamp(node.modified)
         mtime = self._get_oldest_mtime()
-        # DEBUG('acddl') << 'latest recyled' << self._last_recycle << 'node' << mtime
-        # return mtime <= self._last_recycle
         return node.modified <= mtime
 
     async def _reserve_space(self, node):
