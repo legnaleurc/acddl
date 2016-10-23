@@ -249,6 +249,10 @@ class DownloadController(object):
 
         try:
             if await self._check_existence(node, local_path):
+                if need_mtime:
+                    full_path = local_path / node.name
+                    ok = preserve_mtime_by_node(full_path, node)
+                    return ok
                 return True
         except OSError as e:
             if e.errno == 36:
