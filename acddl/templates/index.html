@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <title>ACDDL</title>
+        <link rel="stylesheet" type="text/css" href="{{ static_url('index.css') }}" />
+    </head>
+    <body>
+        <div>
+            <button id="download-button">download</button>
+        </div>
+        <button id="do-cache-button">do_cache</button>
+        <div>
+            <input type="text" placeholder="search" id="search-input" />
+            <button id="search-button">search</button>
+            <div id="search-result"></div>
+        </div>
+        <div id="log-watcher"></div>
+
+        <script defer src="{{ static_url('index.js') }}"></script>
+    </body>
+</html>

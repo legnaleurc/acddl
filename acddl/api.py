@@ -1,9 +1,9 @@
 import json
 
-from tornado import web
+from tornado import web as tw, websocket as tws, ioloop as ti
 
 
-class NodesHandler(web.RequestHandler):
+class NodesHandler(tw.RequestHandler):
 
     async def get(self):
         pattern = self.get_argument('pattern', None)
@@ -13,10 +13,10 @@ class NodesHandler(web.RequestHandler):
 
         controller = self.settings['controller']
         nodes = await controller.search(pattern)
-        nodes = [[k, v] for k, v in nodes.items()]
-        nodes = sorted(nodes, key=lambda _: _[1])
-        nodes = ['{0} {1}\n'.format(*_) for _ in nodes]
-        self.write(''.join(nodes))
+        nodes = [{'id': k, 'name': v} for k, v in nodes.items()]
+        nodes = sorted(nodes, key=lambda _: _['name'])
+        nodes = json.dumps(nodes);
+        self.write(nodes + '\n')
 
     async def post(self):
         controller = self.settings['controller']
@@ -31,7 +31,7 @@ class NodesHandler(web.RequestHandler):
         controller.trash(id_)
 
 
-class CacheHandler(web.RequestHandler):
+class CacheHandler(tw.RequestHandler):
 
     async def get(self):
         nodes = self.get_arguments('nodes[]')
@@ -59,3 +59,34 @@ class CacheHandler(web.RequestHandler):
 
         controller = self.settings['controller']
         controller.download_high(id_)
+
+
+class LogHandler(tw.RequestHandler):
+
+    def get(self):
+        logs = self.settings['logs']
+        # iDontCare
+        result = json.dumps(logs.get_recent())
+        self.write(result)
+
+
+class LogSocketHandler(tws.WebSocketHandler):
+
+    _counter = 0
+
+    def open(self):
+        self._id = self._counter
+        self._counter = self._counter + 1
+        self._beat = ti.PeriodicCallback(self._ping, 20 * 1000)
+        self._beat.start()
+
+        logs = self.settings['logs']
+        logs.add(self._id, self)
+
+    def on_close(self):
+        logs = self.settings['logs']
+        logs.remove(self._id)
+        self._beat.stop()
+
+    def _ping(self):
+        self.ping(b'_')

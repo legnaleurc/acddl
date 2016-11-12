@@ -1,0 +1,19 @@
+#search-result .search-group {
+    margin-top: 1em;
+    margin-bottom: 1em;
+}
+
+#search-result .search-group.empty {
+    padding: 1em;
+    background-color: gray;
+}
+
+#search-result .search-group .search-entry {
+    font-family: monospace;
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+}
+
+#search-result .search-group .search-entry.selected {
+    background-color: aqua;
+}
