@@ -341,7 +341,7 @@ class DownloadTask(ww.Task):
         self._node = node
 
     def __repr__(self):
-        return 'DownloadTask(native_id={0}, id={1})'.format(hex(id(self)), self.id_)
+        return '{0}(native_id={1}, id={2})'.format(self.__class__.__name__, hex(id(self)), self.id_)
 
     def higher_then(self, that):
         # if that is not a DownloadTask, fallback to base class
