@@ -8,8 +8,6 @@ import re
 import shutil
 import time
 
-from acdcli.api.common import RequestError
-from acdcli.utils.time import datetime_to_timestamp
 from tornado import ioloop as ti, gen as tg
 import wcpan.acd as wa
 import wcpan.worker as ww
@@ -314,7 +312,7 @@ class DownloadController(object):
                 INFO('acddl') << 'downloading:' << remote_path
                 local_hash = await self._context.acd.download_node(node, local_path)
                 INFO('acddl') << 'downloaded'
-            except RequestError as e:
+            except wa.RequestError as e:
                 ERROR('acddl') << 'download failed:' << str(e)
             except OSError as e:
                 if e.errno == 36:
@@ -403,7 +401,7 @@ def md5sum(full_path):
 
 
 def preserve_mtime_by_node(full_path, node):
-    mtime = datetime_to_timestamp(node.modified)
+    mtime = wa.datetime_to_timestamp(node.modified)
     return update_mtime(full_path, mtime)
 
 
