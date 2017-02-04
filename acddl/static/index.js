@@ -10,6 +10,13 @@
             if (!id) {
                 return '/api/v1/cache';
             }
+            if (Array.isArray(id)) {
+                let args = new URLSearchParams();
+                id.forEach((v) => {
+                    args.append('nodes[]', v);
+                });
+                return '/api/v1/cache?' + args.toString();
+            }
             return '/api/v1/cache/' + id;
         },
 
@@ -22,6 +29,7 @@
         return Promise.all([
             setupSearch(),
             setupDownload(),
+            setupCompare(),
             setupDoCache(),
             setupLogWatcher(),
         ]).then(_ => 0);
@@ -103,14 +111,9 @@
         let button = document.querySelector('#download-button');
 
         button.addEventListener('click', (event) => {
-            let list = document.querySelectorAll('#search-result .selected');
-            let idList = Array.prototype.map.call(list, (v) => {
-                return v.dataset.id;
-            });
+            let idList = getSelectedID();
             download(idList);
-            list.forEach((v) => {
-                v.classList.remove('selected');
-            });
+            clearSelected();
         });
 
         return Promise.resolve();
@@ -123,6 +126,37 @@
             });
         });
         return Promise.all(requests);
+    }
+
+    function setupCompare () {
+        let button = document.querySelector('#compare-button');
+
+        button.addEventListener('click', (event) => {
+            let idList = getSelectedID();
+            compare(idList).then((data) => {
+                appendCompareResult(data);
+            });
+            clearSelected();
+        });
+
+        return Promise.resolve();
+    }
+
+    function compare (idList) {
+        let headers = new Headers();
+        headers.set('Cache-Control', 'no-store');
+
+        return fetch(API.cache(idList), {
+            method: 'GET',
+            headers: headers,
+        }).then((response) => {
+            return response.json();
+        });
+    }
+
+    function appendCompareResult (searchResultArea, data) {
+        data = createSearchResultList(data);
+        searchResultArea.insertBefore(data, searchResultArea.firstElementChild);
     }
 
     function setupDoCache () {
@@ -182,6 +216,21 @@
         let a = document.createElement('pre');
         a.textContent = record.message;
         return a;
+    }
+
+    function getSelectedID () {
+        let list = document.querySelectorAll('#search-result .selected');
+        let idList = Array.prototype.map.call(list, (v) => {
+            return v.dataset.id;
+        });
+        return idList;
+    }
+
+    function clearSelected () {
+        let list = document.querySelectorAll('#search-result .selected');
+        Array.prototype.forEach.call(list, (v) => {
+            v.classList.remove('selected');
+        });
     }
 
     return main();
