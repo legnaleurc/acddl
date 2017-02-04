@@ -95,13 +95,13 @@ def main(args=None):
 
     static_path = op.join(op.dirname(__file__), 'static')
     application = tw.Application([
-        (r'/nodes', api.NodesHandler),
-        (r'/nodes/([a-zA-Z0-9\-_]{22})', api.NodesHandler),
-        (r'/cache', api.CacheHandler),
-        (r'/cache/([a-zA-Z0-9\-_]{22})', api.CacheHandler),
+        (r'/api/v1/nodes', api.NodesHandler),
+        (r'/api/v1/nodes/([a-zA-Z0-9\-_]{22})', api.NodesHandler),
+        (r'/api/v1/cache', api.CacheHandler),
+        (r'/api/v1/cache/([a-zA-Z0-9\-_]{22})', api.CacheHandler),
         (r'/', view.IndexHandler),
-        (r'/log', api.LogHandler),
-        (r'/socket', api.LogSocketHandler),
+        (r'/api/v1/log', api.LogHandler),
+        (r'/api/v1/socket', api.LogSocketHandler),
     ], static_path=static_path, controller=controller, logs=logs)
     server = ths.HTTPServer(application)
     server.listen(args.listen)

@@ -1,6 +1,23 @@
 (function () {
     'use strict';
 
+    let API = {
+        nodes (args) {
+            return '/api/v1/nodes?' + args.toString();
+        },
+
+        cache (id) {
+            if (!id) {
+                return '/api/v1/cache';
+            }
+            return '/api/v1/cache/' + id;
+        },
+
+        log () {
+            return '/api/v1/log';
+        },
+    };
+
     function main () {
         return Promise.all([
             setupSearch(),
@@ -39,7 +56,7 @@
         args.set('pattern', pattern);
         let headers = new Headers();
         headers.set('Cache-Control', 'no-store');
-        return fetch('/nodes' + '?' + args.toString(), {
+        return fetch(API.nodes(args), {
           method: 'GET',
           headers: headers,
         }).then((response) => {
@@ -101,7 +118,7 @@
 
     function download (idList) {
         let requests = idList.map((v) => {
-            return fetch('/cache/' + v, {
+            return fetch(API.cache(v), {
                 method: 'PUT',
             });
         });
@@ -122,7 +139,7 @@
         let args = new URLSearchParams();
         args.append('acd_paths[]', '/tmp');
 
-        return fetch('/cache', {
+        return fetch(API.cache(), {
             method: 'POST',
             body: args,
         }).then((response) => {
@@ -132,7 +149,7 @@
 
     function setupLogWatcher () {
       let result = document.querySelector('#log-watcher');
-      let ws = new WebSocket(`ws://${location.host}/socket`);
+      let ws = new WebSocket(`ws://${location.host}/api/v1/socket`);
 
       ws.addEventListener('message', function (event) {
           let record = formatRecord(JSON.parse(event.data));
@@ -147,7 +164,7 @@
 
       let headers = new Headers();
       headers.set('Cache-Control', 'no-store');
-      return fetch('/log', {
+      return fetch(API.log(), {
           method: 'GET',
           headers: headers,
       }).then((response) => {
