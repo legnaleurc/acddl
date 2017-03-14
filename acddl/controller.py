@@ -152,16 +152,18 @@ class DownloadController(object):
         return children
 
     def _get_oldest_mtime(self):
-        entries = self._get_cache_entries()
+        entries = self._get_recyclable_entries()
         if not entries:
             return dt.datetime.fromtimestamp(0)
         full_path, mtime = entries[0]
         # just convert from local TZ, no need to use UTC
         return dt.datetime.fromtimestamp(mtime)
 
-    def _get_cache_entries(self):
+    def _get_recyclable_entries(self):
         # get first level children
         entries = self._context.root.iterdir()
+        # filter
+        entries = (_ for _ in entries if is_unlinkable(_))
         # generate (path, mtime) pair
         entries = ((_, _.stat().st_mtime) for _ in entries)
         entries = sorted(entries, key=lambda _: _[1])
@@ -175,7 +177,7 @@ class DownloadController(object):
         entries = None
         while await self._need_recycle(node):
             if not entries:
-                entries = self._get_cache_entries()
+                entries = self._get_recyclable_entries()
             full_path, mtime = entries.pop(0)
             if full_path.is_dir():
                 shutil.rmtree(str(full_path))
@@ -423,3 +425,8 @@ def human_readable(bytes_):
         bytes_ /= 1024
     else:
         return bytes_ * 1024, units[-1]
+
+
+def is_unlinkable(full_path):
+    flag = os.W_OK if full_path.is_dir() else os.W_OK | os.X_OK
+    return os.access(full_path, flag, effective_ids=True)
