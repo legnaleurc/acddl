@@ -428,5 +428,5 @@ def human_readable(bytes_):
 
 
 def is_unlinkable(full_path):
-    flag = os.W_OK if full_path.is_dir() else os.W_OK | os.X_OK
+    flag = (os.W_OK | os.X_OK) if full_path.is_dir() else os.W_OK
     return os.access(full_path, flag, effective_ids=True)
