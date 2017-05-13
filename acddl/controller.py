@@ -98,6 +98,7 @@ class RootController(object):
         self._worker.do_later(functools.partial(self._context.acd.trash, node_id))
 
     async def sync_db(self):
+        await self._context.search_engine.clear_cache()
         await self._context.acd.sync()
 
     def _ensure_alive(self):
@@ -139,6 +140,7 @@ class DownloadController(object):
         self._worker.start()
 
     async def _download_from(self, *remote_paths):
+        await self._context.search_engine.clear_cache()
         await self._context.acd.sync()
         children = await self._get_unified_children(remote_paths)
         for child in children:
