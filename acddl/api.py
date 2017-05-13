@@ -15,7 +15,7 @@ class NodesHandler(tw.RequestHandler):
         nodes = await controller.search(pattern)
         nodes = [{'id': k, 'name': v} for k, v in nodes.items()]
         nodes = sorted(nodes, key=lambda _: _['name'])
-        nodes = json.dumps(nodes);
+        nodes = json.dumps(nodes)
         self.write(nodes + '\n')
 
     async def post(self):
