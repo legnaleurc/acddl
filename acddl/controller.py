@@ -8,7 +8,7 @@ import re
 import shutil
 import time
 
-from tornado import ioloop as ti, gen as tg
+from tornado import ioloop as ti, gen as tg, locks as tl
 import wcpan.acd as wa
 import wcpan.worker as ww
 from wcpan.logger import ERROR, WARNING, INFO, EXCEPTION, DEBUG
@@ -21,6 +21,7 @@ class Context(object):
         self._auth_path = op.expanduser('~/.cache/acd_cli')
         self._dl = DownloadController(self)
         self._acd = wa.ACDController(self._auth_path)
+        self._search_engine = SearchEngine(self._acd)
 
     def close(self):
         for ctrl in (self._dl, self._acd):
@@ -42,6 +43,10 @@ class Context(object):
     def acd(self):
         return self._acd
 
+    @property
+    def search_engine(self):
+        return self._search_engine
+
 
 class RootController(object):
 
@@ -58,9 +63,13 @@ class RootController(object):
     async def search(self, pattern):
         real_pattern = re.sub(r'(\s|-)+', '.*', pattern)
         real_pattern = '.*{0}.*'.format(real_pattern)
-        nodes = await self._context.acd.find_by_regex(real_pattern)
-        nodes = {_.id: self._context.acd.get_path(_) for _ in nodes if _.is_available}
-        nodes = await tg.multi(nodes)
+        try:
+            re.compile(real_pattern)
+        except Exception as e:
+            EXCEPTION('acddl', e) << real_pattern
+            return []
+
+        nodes = await self._context.search_engine.get_nodes_by_regex(real_pattern)
         return nodes
 
     def download_high(self, node_id):
@@ -389,6 +398,41 @@ class LowDownloadTask(DownloadTask):
         if self._node.modified < that._node.modified:
             return False
         return None
+
+
+class SearchEngine(object):
+
+    def __init__(self, acd):
+        super(SearchEngine, self).__init__()
+        # NOTE only takes a reference, do not do clean up
+        self._acd = acd
+        self._cache = {}
+        self._searching = {}
+
+    async def get_nodes_by_regex(self, pattern):
+        nodes = self._cache.get(pattern, None)
+        if nodes is not None:
+            return nodes
+
+        if pattern in self._searching:
+            lock = self._searching[pattern]
+            await lock.wait()
+            return self._cache[pattern]
+
+        lock = tl.Condition()
+        self._searching[pattern] = lock
+        nodes = await self._acd.find_by_regex(pattern)
+        nodes = {_.id: self._acd.get_path(_) for _ in nodes if _.is_available}
+        nodes = await tg.multi(nodes)
+        self._cache[pattern] = nodes
+        del self._searching[pattern]
+        lock.notify_all()
+
+    async def clear_cache(self):
+        while len(self._searching) > 0:
+            pattern, lock = next(self._searching.items())
+            await lock.wait()
+        self._cache = {}
 
 
 def md5sum(full_path):
