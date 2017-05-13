@@ -429,6 +429,7 @@ class SearchEngine(object):
         self._cache[pattern] = nodes
         del self._searching[pattern]
         lock.notify_all()
+        return nodes
 
     async def clear_cache(self):
         while len(self._searching) > 0:
