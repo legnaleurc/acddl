@@ -433,7 +433,7 @@ class SearchEngine(object):
 
     async def clear_cache(self):
         while len(self._searching) > 0:
-            pattern, lock = next(self._searching.items())
+            pattern, lock = next(iter(self._searching.items()))
             await lock.wait()
         self._cache = {}
 
