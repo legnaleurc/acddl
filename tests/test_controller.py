@@ -38,6 +38,8 @@ class TestDownloadController(tt.AsyncTestCase):
         rfs = u.create_fake_remote_file_system()
         with utm.patch('pathlib.Path', new_callable=functools.partial(u.metapathmock, lfs)) as FakePath:
             context = utm.Mock()
+            # mock search_engine
+            context.search_engine.clear_cache = u.AsyncMock()
             # mock acd
             context.acd.sync = u.AsyncMock()
             context.acd.resolve_path = functools.partial(fake_resolve_path, rfs)
