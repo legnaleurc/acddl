@@ -89,9 +89,14 @@ def main(args=None):
         logger.addHandler(logs)
 
     main_loop = ti.IOLoop.instance()
-
     controller = RootController(args.root)
-    signal.signal(signal.SIGINT, controller.close)
+
+    async def close_root():
+        await controller.close()
+        main_loop.stop()
+    def close_signal(signum, frame):
+        main_loop.add_callback_from_signal(close_root)
+    signal.signal(signal.SIGINT, close_signal)
 
     static_path = op.join(op.dirname(__file__), 'static')
     application = tw.Application([

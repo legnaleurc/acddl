@@ -20,7 +20,7 @@ class Context(object):
         self._root = pathlib.Path(root_path)
         self._auth_path = op.expanduser('~/.cache/wcpan/drive/google')
         self._dl = DownloadController(self)
-        self._drive = wdg.GoogleDrive(self._auth_path)
+        self._drive = wdg.Drive(self._auth_path)
         self._search_engine = SearchEngine(self._drive)
 
     async def close(self):
@@ -55,7 +55,7 @@ class RootController(object):
         self._loop = ti.IOLoop.current()
 
     async def close(self):
-        async self._context.close()
+        await self._context.close()
 
     async def search(self, pattern):
         real_pattern = re.sub(r'(\s|-)+', '.*', pattern)
@@ -418,7 +418,7 @@ class SearchEngine(object):
 
         lock = tl.Condition()
         self._searching[pattern] = lock
-        nodes = await self._drive.find_by_regex(pattern)
+        nodes = await self._drive.find_node_by_regex(pattern)
         nodes = {_.id: self._drive.get_path(_) for _ in nodes if _.is_available}
         nodes = await tg.multi(nodes)
         self._cache[pattern] = nodes
