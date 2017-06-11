@@ -105,31 +105,31 @@ class DownloadController(object):
 
     def __init__(self, context):
         self._context = context
-        self._worker = ww.AsyncWorker()
+        self._queue = ww.AsyncQueue(4)
         self._last_recycle = 0
 
-    def close(self):
-        self._worker.stop()
+    async def close(self):
+        await self._queue.stop()
 
-    def download_later(self, node):
+    def download(self, node):
         self._ensure_alive()
         task = self._make_high_download_task(node)
-        self._worker.do_later(task)
+        self._queue.post(task)
 
-    async def multiple_download_later(self, *remote_paths):
+    def multiple_download(self, *remote_paths):
         self._ensure_alive()
-        await self.abort()
+        self.abort()
         task = functools.partial(self._download_from, *remote_paths)
-        self._worker.do_later(task)
+        self._queue.post(task)
 
-    async def abort(self):
-        await self._worker.flush(lambda _: isinstance(_, LowDownloadTask))
+    def abort(self):
+        self._queue.flush(lambda _: isinstance(_, LowDownloadTask))
 
-    def _abort_later(self):
-        self._worker.flush_later(lambda _: isinstance(_, LowDownloadTask))
+    # def _abort_later(self):
+    #     self._worker.flush_later(lambda _: isinstance(_, LowDownloadTask))
 
     def _ensure_alive(self):
-        self._worker.start()
+        self._queue.start()
 
     async def _download_from(self, *remote_paths):
         await self._context.search_engine.clear_cache()
@@ -137,7 +137,7 @@ class DownloadController(object):
         children = await self._get_unified_children(remote_paths)
         for child in children:
             task = self._make_low_download_task(child)
-            self._worker.do_later(task)
+            self._queue.post(task)
 
     def _make_high_download_task(self, node):
         return HighDownloadTask(self._download, node, self._context.root)
@@ -146,7 +146,8 @@ class DownloadController(object):
         return LowDownloadTask(self._download, node, self._context.root)
 
     async def _get_unified_children(self, remote_paths):
-        children = (self._context.drive.resolve_path(_) for _ in remote_paths)
+        children = (self._context.drive.get_node_by_path(_)
+                    for _ in remote_paths)
         children = await tg.multi(children)
         children = (self._context.drive.get_children(_) for _ in children)
         children = await tg.multi(children)
@@ -311,13 +312,14 @@ class DownloadController(object):
 
     async def _download_file(self, node, local_path, full_path):
         # retry until succeed
+        drive = self._context.drive
         while True:
             try:
-                remote_path = await self._context.drive.get_path(node)
+                remote_path = await drive.get_path(node)
                 INFO('ddl') << 'downloading:' << remote_path
-                local_hash = await self._context.drive.download_node(node, local_path)
+                local_hash = await drive.download_file(node, local_path)
                 INFO('ddl') << 'downloaded'
-            except wa.RequestError as e:
+            except wdg.DownloadError as e:
                 ERROR('ddl') << 'download failed:' << str(e)
             except OSError as e:
                 if e.errno == 36:
