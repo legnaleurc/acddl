@@ -23,6 +23,7 @@
             setupSearch(),
             setupDownload(),
             setupDoCache(),
+            setupSync(),
             setupLogWatcher(),
         ]).then(_ => 0);
     }
@@ -144,6 +145,22 @@
             body: args,
         }).then((response) => {
             return response.text();
+        });
+    }
+
+    function setupSync () {
+        let button = document.querySelector('#sync-button');
+
+        button.addEventListener('click', (event) => {
+            doSync();
+        });
+
+        return Promise.resolve();
+    }
+
+    function doSync () {
+        return fetch(API.cache(), {
+            method: 'POST',
         });
     }
 
