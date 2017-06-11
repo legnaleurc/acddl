@@ -103,9 +103,9 @@ def main(args=None):
     static_path = op.join(op.dirname(__file__), 'static')
     application = tw.Application([
         (r'/api/v1/nodes', api.NodesHandler),
-        (r'/api/v1/nodes/([a-zA-Z0-9\-_]{22})', api.NodesHandler),
+        (r'/api/v1/nodes/([a-zA-Z0-9\-_]{28})', api.NodesHandler),
         (r'/api/v1/cache', api.CacheHandler),
-        (r'/api/v1/cache/([a-zA-Z0-9\-_]{22})', api.CacheHandler),
+        (r'/api/v1/cache/([a-zA-Z0-9\-_]{28})', api.CacheHandler),
         (r'/', view.IndexHandler),
         (r'/api/v1/log', api.LogHandler),
         (r'/api/v1/socket', api.LogSocketHandler),
