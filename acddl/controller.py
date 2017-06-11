@@ -119,7 +119,7 @@ class DownloadController(object):
     def multiple_download(self, *remote_paths):
         self._ensure_alive()
         self.abort()
-        task = functools.partial(self._download_from, *remote_paths)
+        task = ft.partial(self._download_from, *remote_paths)
         self._queue.post(task)
 
     def abort(self):
@@ -341,7 +341,8 @@ class DownloadController(object):
 class DownloadTask(ww.Task):
 
     def __init__(self, callable_, node, local_path, need_mtime):
-        super(DownloadTask, self).__init__(functools.partial(callable_, node, local_path, need_mtime))
+        super(DownloadTask, self).__init__(ft.partial(callable_, node,
+                                                      local_path, need_mtime))
 
         self._node = node
 
@@ -398,10 +399,10 @@ class LowDownloadTask(DownloadTask):
 
 class SearchEngine(object):
 
-    def __init__(self, acd):
+    def __init__(self, drive):
         super(SearchEngine, self).__init__()
         # NOTE only takes a reference, do not do clean up
-        self._drive = acd
+        self._drive = drive
         self._cache = {}
         self._searching = {}
 
