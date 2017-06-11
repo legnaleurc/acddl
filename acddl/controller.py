@@ -1,5 +1,5 @@
 import datetime as dt
-import functools
+import functools as ft
 import hashlib
 import os
 import os.path as op
@@ -23,9 +23,9 @@ class Context(object):
         self._drive = wdg.GoogleDrive(self._auth_path)
         self._search_engine = SearchEngine(self._drive)
 
-    def close(self):
-        for ctrl in (self._dl, self._drive):
-            ctrl.close()
+    async def close(self):
+        await self._dl.close()
+        self._drive.close()
 
     @property
     def root(self):
@@ -52,13 +52,10 @@ class RootController(object):
 
     def __init__(self, cache_folder):
         self._context = Context(cache_folder)
-        self._worker = ww.AsyncWorker()
+        self._loop = ti.IOLoop.current()
 
-    def close(self, signum, frame):
-        self._worker.stop()
-        self._context.close()
-        main_loop = ti.IOLoop.instance()
-        main_loop.stop()
+    async def close(self):
+        async self._context.close()
 
     async def search(self, pattern):
         real_pattern = re.sub(r'(\s|-)+', '.*', pattern)
@@ -69,23 +66,22 @@ class RootController(object):
             EXCEPTION('ddl', e) << real_pattern
             return []
 
-        nodes = await self._context.search_engine.get_nodes_by_regex(real_pattern)
+        se = self._context.search_engine
+        nodes = await se.get_nodes_by_regex(real_pattern)
         return nodes
 
     def download_high(self, node_id):
-        self._ensure_alive()
-        self._worker.do_later(functools.partial(self._download_glue, node_id))
+        fn = ft.partial(self._download_glue, node_id)
+        self._loop.add_callback(fn)
 
     def abort_pending(self):
-        self._ensure_alive()
-        self._worker.do_later(self._context.dl.abort)
+        self._context.dl.abort()
 
     def download_low(self, remote_paths):
-        self._ensure_alive()
-        self._worker.do_later(functools.partial(self._context.dl.multiple_download_later, *remote_paths))
+        self._context.dl.multiple_download(*remote_paths)
 
     async def compare(self, node_ids):
-        nodes = (self._context.drive.get_node(_) for _ in node_ids)
+        nodes = (self._context.drive.get_node_by_id(_) for _ in node_ids)
         nodes = await tg.multi(nodes)
         unique = set(_.md5 for _ in nodes)
         if len(unique) == 1:
@@ -93,20 +89,16 @@ class RootController(object):
         else:
             return [_.size for _ in nodes]
 
-    def trash(self, node_id):
-        self._ensure_alive()
-        self._worker.do_later(functools.partial(self._context.drive.trash, node_id))
+    async def trash(self, node_id):
+        await self._context.drive.trash_node_by_id(node_id)
 
     async def sync_db(self):
         await self._context.search_engine.clear_cache()
         await self._context.drive.sync()
 
-    def _ensure_alive(self):
-        self._worker.start()
-
     async def _download_glue(self, node_id):
-        node = await self._context.drive.get_node(node_id)
-        self._context.dl.download_later(node)
+        node = await self._context.drive.get_node_by_id(node_id)
+        self._context.dl.download(node)
 
 
 class DownloadController(object):
