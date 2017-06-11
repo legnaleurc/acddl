@@ -424,7 +424,7 @@ class SearchEngine(object):
 
         lock = tl.Condition()
         self._searching[pattern] = lock
-        nodes = await self._drive.find_node_by_regex(pattern)
+        nodes = await self._drive.find_nodes_by_regex(pattern)
         nodes = {_.id: self._drive.get_path(_) for _ in nodes if _.is_available}
         nodes = await tg.multi(nodes)
         self._cache[pattern] = nodes
