@@ -1,5 +1,4 @@
-git+https://github.com/yadayada/acd_cli.git#egg=acdcli
 tornado
-wcpan.acd
+wcpan.drive.google
 wcpan.logger
 wcpan.worker

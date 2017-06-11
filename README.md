@@ -1,30 +1,30 @@
-# ACDDL
+# DDL
 
 A centralized download server
 
 ## RESTful API
 
-### GET /nodes
+### GET /api/v1/nodes
 
 * pattern (string)
 
     search nodes by the given pattern
 
-### POST /nodes
+### POST /api/v1/nodes
 
 sync ACD cache database
 
-### DELETE /nodes/{id}
+### DELETE /api/v1/nodes/{id}
 
 move the node to trash
 
-### GET /cache
+### GET /api/v1/cache
 
 * nodes[] (string)
 
     compare nodes
 
-### POST /cache
+### POST /api/v1/cache
 
 abort pending downloads
 
@@ -32,6 +32,6 @@ abort pending downloads
 
     pull files from the given paths
 
-### PUT /cache/{id}
+### PUT /api/v1/cache/{id}
 
 download the given node

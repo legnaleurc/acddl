@@ -66,7 +66,7 @@ class RootController(object):
         try:
             re.compile(real_pattern)
         except Exception as e:
-            EXCEPTION('acddl', e) << real_pattern
+            EXCEPTION('ddl', e) << real_pattern
             return []
 
         nodes = await self._context.search_engine.get_nodes_by_regex(real_pattern)
@@ -195,14 +195,14 @@ class DownloadController(object):
             else:
                 full_path.unlink()
             self._last_recycle = mtime
-            INFO('acddl') << 'recycled:' << full_path
+            INFO('ddl') << 'recycled:' << full_path
 
     async def _need_recycle(self, node):
         free_space = self._get_free_space()
         required_space = await self._get_node_size(node)
         hfs, fsu = human_readable(free_space)
         hrs, rsu = human_readable(required_space)
-        INFO('acddl') << 'free space: {0:.2f} {1}, required: {2:.2f} {3}'.format(hfs, fsu, hrs, rsu)
+        INFO('ddl') << 'free space: {0:.2f} {1}, required: {2:.2f} {3}'.format(hfs, fsu, hrs, rsu)
         return free_space <= required_space
 
     # in bytes
@@ -239,15 +239,15 @@ class DownloadController(object):
             # is not file or does not even exists
             return False
 
-        INFO('acddl') << 'checking existed:' << full_path
+        INFO('ddl') << 'checking existed:' << full_path
         local = md5sum(full_path)
         remote = node.md5
         if local == remote:
-            INFO('acddl') << 'skip same file'
+            INFO('ddl') << 'skip same file'
             return True
 
-        INFO('acddl') << 'expected:' << remote << 'got:' << local
-        INFO('acddl') << 'remove' << full_path
+        INFO('ddl') << 'expected:' << remote << 'got:' << local
+        INFO('ddl') << 'remove' << full_path
         full_path.unlink()
         return False
 
@@ -267,16 +267,16 @@ class DownloadController(object):
                 return True
         except OSError as e:
             if e.errno == 36:
-                WARNING('acddl') << 'download failed: file name too long'
+                WARNING('ddl') << 'download failed: file name too long'
                 return False
             # fatal unknown error
             raise
 
-        DEBUG('acddl') << 'different'
+        DEBUG('ddl') << 'different'
 
         if await self._need_recycle(node):
             if need_mtime and self._is_too_old(node):
-                DEBUG('acddl') << 'too old'
+                DEBUG('ddl') << 'too old'
                 self._abort_later()
                 return False
             await self._reserve_space(node)
@@ -306,7 +306,7 @@ class DownloadController(object):
         try:
             full_path.mkdir(parents=True, exist_ok=True)
         except OSError:
-            WARNING('acddl') << 'mkdir failed:' << full_path
+            WARNING('ddl') << 'mkdir failed:' << full_path
             return False
 
         children = await self._context.acd.get_children(node)
@@ -322,21 +322,21 @@ class DownloadController(object):
         while True:
             try:
                 remote_path = await self._context.acd.get_path(node)
-                INFO('acddl') << 'downloading:' << remote_path
+                INFO('ddl') << 'downloading:' << remote_path
                 local_hash = await self._context.acd.download_node(node, local_path)
-                INFO('acddl') << 'downloaded'
+                INFO('ddl') << 'downloaded'
             except wa.RequestError as e:
-                ERROR('acddl') << 'download failed:' << str(e)
+                ERROR('ddl') << 'download failed:' << str(e)
             except OSError as e:
                 if e.errno == 36:
-                    WARNING('acddl') << 'download failed: file name too long'
+                    WARNING('ddl') << 'download failed: file name too long'
                     return False
                 # fatal unknown error
                 raise
             else:
                 remote_hash = node.md5
                 if local_hash != remote_hash:
-                    INFO('acddl') << 'md5 mismatch:' << full_path
+                    INFO('ddl') << 'md5 mismatch:' << full_path
                     full_path.unlink()
                 else:
                     break

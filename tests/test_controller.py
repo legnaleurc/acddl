@@ -5,7 +5,7 @@ from unittest import mock as utm
 from pyfakefs import fake_filesystem as ffs
 from tornado import testing as tt
 
-from acddl import controller as ctrl
+from ddl import controller as ctrl
 from . import util as u
 
 

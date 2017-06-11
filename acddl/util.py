@@ -59,7 +59,7 @@ class LogQueue(logging.Handler):
 
 
 def parse_args(args):
-    parser = argparse.ArgumentParser('acddl')
+    parser = argparse.ArgumentParser('ddl')
 
     parser.add_argument('-l', '--listen', required=True, type=int)
     parser.add_argument('-r', '--root', required=True, type=str)
@@ -82,8 +82,8 @@ def main(args=None):
         'requests.packages.urllib3.connectionpool',
         'wcpan.acd',
         'wcpan.worker',
-        'acddl',
-    ), '/tmp/acddl.log')
+        'ddl',
+    ), '/tmp/ddl.log')
     logs = LogQueue(logging.DEBUG)
     for logger in loggers:
         logger.addHandler(logs)
@@ -106,7 +106,7 @@ def main(args=None):
     server = ths.HTTPServer(application)
     server.listen(args.listen)
 
-    INFO('acddl') << 'ready'
+    INFO('ddl') << 'ready'
 
     main_loop.start()
     main_loop.close()
