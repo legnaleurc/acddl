@@ -47,7 +47,7 @@ class CacheHandler(tw.RequestHandler):
 
         acd_paths = self.get_arguments('acd_paths[]')
         if not acd_paths:
-            controller.abort_pending()
+            controller.sync_db()
             return
 
         controller.download_low(acd_paths)

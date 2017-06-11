@@ -80,9 +80,6 @@ class RootController(object):
         fn = ft.partial(self._download_glue, node_id)
         self._loop.add_callback(fn)
 
-    def abort_pending(self):
-        self._context.dl.abort()
-
     def download_low(self, remote_paths):
         self._context.dl.multiple_download(*remote_paths)
 
@@ -98,13 +95,16 @@ class RootController(object):
     async def trash(self, node_id):
         await self._context.drive.trash_node_by_id(node_id)
 
-    async def sync_db(self):
-        await self._context.search_engine.clear_cache()
-        await self._context.drive.sync()
+    def sync_db(self):
+        self._loop.add_callback(self._sync_glue)
 
     async def _download_glue(self, node_id):
         node = await self._context.drive.get_node_by_id(node_id)
         self._context.dl.download(node)
+
+    async def _sync_glue(self):
+        await self._context.search_engine.clear_cache()
+        await self._context.drive.sync()
 
 
 class DownloadController(object):
