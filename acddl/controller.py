@@ -18,7 +18,7 @@ class Context(object):
 
     def __init__(self, root_path):
         self._root = pathlib.Path(root_path)
-        self._auth_path = op.expanduser('~/.cache/ddl')
+        self._auth_path = op.expanduser('~/.cache/wcpan/drive/google')
         self._dl = DownloadController(self)
         self._drive = wdg.GoogleDrive(self._auth_path)
         self._search_engine = SearchEngine(self._drive)
