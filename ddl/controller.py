@@ -23,6 +23,9 @@ class Context(object):
         self._drive = wdg.Drive(self._auth_path)
         self._search_engine = SearchEngine(self._drive)
 
+    def initialize(self):
+        self._drive.initialize()
+
     async def close(self):
         await self._dl.close()
         self._drive.close()
@@ -53,6 +56,9 @@ class RootController(object):
     def __init__(self, cache_folder):
         self._context = Context(cache_folder)
         self._loop = ti.IOLoop.current()
+
+    def initialize(self):
+        self._context.initialize()
 
     async def close(self):
         await self._context.close()

@@ -91,6 +91,8 @@ def main(args=None):
     main_loop = ti.IOLoop.instance()
     controller = RootController(args.root)
 
+    controller.initialize()
+
     async def close_root():
         await controller.close()
         main_loop.stop()
