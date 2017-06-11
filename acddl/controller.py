@@ -9,7 +9,7 @@ import shutil
 import time
 
 from tornado import ioloop as ti, gen as tg, locks as tl
-import wcpan.acd as wa
+import wcpan.drive.google as wdg
 import wcpan.worker as ww
 from wcpan.logger import ERROR, WARNING, INFO, EXCEPTION, DEBUG
 
@@ -18,13 +18,13 @@ class Context(object):
 
     def __init__(self, root_path):
         self._root = pathlib.Path(root_path)
-        self._auth_path = op.expanduser('~/.cache/acd_cli')
+        self._auth_path = op.expanduser('~/.cache/ddl')
         self._dl = DownloadController(self)
-        self._acd = wa.ACDController(self._auth_path)
-        self._search_engine = SearchEngine(self._acd)
+        self._drive = wdg.GoogleDrive(self._auth_path)
+        self._search_engine = SearchEngine(self._drive)
 
     def close(self):
-        for ctrl in (self._dl, self._acd):
+        for ctrl in (self._dl, self._drive):
             ctrl.close()
 
     @property
@@ -40,8 +40,8 @@ class Context(object):
         return self._dl
 
     @property
-    def acd(self):
-        return self._acd
+    def drive(self):
+        return self._drive
 
     @property
     def search_engine(self):
@@ -85,7 +85,7 @@ class RootController(object):
         self._worker.do_later(functools.partial(self._context.dl.multiple_download_later, *remote_paths))
 
     async def compare(self, node_ids):
-        nodes = (self._context.acd.get_node(_) for _ in node_ids)
+        nodes = (self._context.drive.get_node(_) for _ in node_ids)
         nodes = await tg.multi(nodes)
         unique = set(_.md5 for _ in nodes)
         if len(unique) == 1:
@@ -95,17 +95,17 @@ class RootController(object):
 
     def trash(self, node_id):
         self._ensure_alive()
-        self._worker.do_later(functools.partial(self._context.acd.trash, node_id))
+        self._worker.do_later(functools.partial(self._context.drive.trash, node_id))
 
     async def sync_db(self):
         await self._context.search_engine.clear_cache()
-        await self._context.acd.sync()
+        await self._context.drive.sync()
 
     def _ensure_alive(self):
         self._worker.start()
 
     async def _download_glue(self, node_id):
-        node = await self._context.acd.get_node(node_id)
+        node = await self._context.drive.get_node(node_id)
         self._context.dl.download_later(node)
 
 
@@ -141,7 +141,7 @@ class DownloadController(object):
 
     async def _download_from(self, *remote_paths):
         await self._context.search_engine.clear_cache()
-        await self._context.acd.sync()
+        await self._context.drive.sync()
         children = await self._get_unified_children(remote_paths)
         for child in children:
             task = self._make_low_download_task(child)
@@ -154,9 +154,9 @@ class DownloadController(object):
         return LowDownloadTask(self._download, node, self._context.root)
 
     async def _get_unified_children(self, remote_paths):
-        children = (self._context.acd.resolve_path(_) for _ in remote_paths)
+        children = (self._context.drive.resolve_path(_) for _ in remote_paths)
         children = await tg.multi(children)
-        children = (self._context.acd.get_children(_) for _ in children)
+        children = (self._context.drive.get_children(_) for _ in children)
         children = await tg.multi(children)
         children = [_1 for _0 in children for _1 in _0]
         children = sorted(children, key=lambda _: _.modified, reverse=True)
@@ -219,7 +219,7 @@ class DownloadController(object):
         if not node.is_folder:
             return node.size
 
-        children = await self._context.acd.get_children(node)
+        children = await self._context.drive.get_children(node)
         children = (self._get_node_size(_) for _ in children)
         children = await tg.multi(children)
         return sum(children)
@@ -228,7 +228,7 @@ class DownloadController(object):
         full_path /= node.name
 
         if node.is_folder:
-            children = await self._context.acd.get_children(node)
+            children = await self._context.drive.get_children(node)
             for child in children:
                 ok = await self._check_existence(child, full_path)
                 if not ok:
@@ -309,7 +309,7 @@ class DownloadController(object):
             WARNING('ddl') << 'mkdir failed:' << full_path
             return False
 
-        children = await self._context.acd.get_children(node)
+        children = await self._context.drive.get_children(node)
         for child in children:
             ok = await self._download_glue(child, full_path, need_mtime)
             if not ok:
@@ -321,9 +321,9 @@ class DownloadController(object):
         # retry until succeed
         while True:
             try:
-                remote_path = await self._context.acd.get_path(node)
+                remote_path = await self._context.drive.get_path(node)
                 INFO('ddl') << 'downloading:' << remote_path
-                local_hash = await self._context.acd.download_node(node, local_path)
+                local_hash = await self._context.drive.download_node(node, local_path)
                 INFO('ddl') << 'downloaded'
             except wa.RequestError as e:
                 ERROR('ddl') << 'download failed:' << str(e)
@@ -407,7 +407,7 @@ class SearchEngine(object):
     def __init__(self, acd):
         super(SearchEngine, self).__init__()
         # NOTE only takes a reference, do not do clean up
-        self._acd = acd
+        self._drive = acd
         self._cache = {}
         self._searching = {}
 
@@ -423,8 +423,8 @@ class SearchEngine(object):
 
         lock = tl.Condition()
         self._searching[pattern] = lock
-        nodes = await self._acd.find_by_regex(pattern)
-        nodes = {_.id: self._acd.get_path(_) for _ in nodes if _.is_available}
+        nodes = await self._drive.find_by_regex(pattern)
+        nodes = {_.id: self._drive.get_path(_) for _ in nodes if _.is_available}
         nodes = await tg.multi(nodes)
         self._cache[pattern] = nodes
         del self._searching[pattern]

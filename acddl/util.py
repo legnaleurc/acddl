@@ -80,7 +80,7 @@ def main(args=None):
         'tornado.application',
         'tornado.general',
         'requests.packages.urllib3.connectionpool',
-        'wcpan.acd',
+        'wcpan.drive.google',
         'wcpan.worker',
         'ddl',
     ), '/tmp/ddl.log')

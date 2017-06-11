@@ -40,10 +40,10 @@ class TestDownloadController(tt.AsyncTestCase):
             context = utm.Mock()
             # mock search_engine
             context.search_engine.clear_cache = u.AsyncMock()
-            # mock acd
-            context.acd.sync = u.AsyncMock()
-            context.acd.resolve_path = functools.partial(fake_resolve_path, rfs)
-            context.acd.get_children = functools.partial(fake_get_children, rfs)
+            # mock drive
+            context.drive.sync = u.AsyncMock()
+            context.drive.resolve_path = functools.partial(fake_resolve_path, rfs)
+            context.drive.get_children = functools.partial(fake_get_children, rfs)
             # mock root
             context.root = FakePath('/local')
 
@@ -60,10 +60,10 @@ class TestDownloadController(tt.AsyncTestCase):
         rfs = u.create_fake_remote_file_system()
         with utm.patch('pathlib.Path', new_callable=functools.partial(u.metapathmock, lfs)) as FakePath:
             context = utm.Mock()
-            # mock acd
-            context.acd.download_node = fake_download_node
-            context.acd.get_children = functools.partial(fake_get_children, rfs)
-            context.acd.get_path = functools.partial(fake_get_path, rfs)
+            # mock drive
+            context.drive.download_node = fake_download_node
+            context.drive.get_children = functools.partial(fake_get_children, rfs)
+            context.drive.get_path = functools.partial(fake_get_path, rfs)
             # mock root
             context.root = FakePath('/local')
             # mock os
