@@ -69,7 +69,7 @@ class RootController(object):
         try:
             re.compile(real_pattern)
         except Exception as e:
-            EXCEPTION('ddl', e) << real_pattern
+            EXCEPTION('ddld', e) << real_pattern
             return []
 
         se = self._context.search_engine
@@ -194,14 +194,14 @@ class DownloadController(object):
             else:
                 full_path.unlink()
             self._last_recycle = mtime
-            INFO('ddl') << 'recycled:' << full_path
+            INFO('ddld') << 'recycled:' << full_path
 
     async def _need_recycle(self, node):
         free_space = self._get_free_space()
         required_space = await self._get_node_size(node)
         hfs, fsu = human_readable(free_space)
         hrs, rsu = human_readable(required_space)
-        INFO('ddl') << 'free space: {0:.2f} {1}, required: {2:.2f} {3}'.format(hfs, fsu, hrs, rsu)
+        INFO('ddld') << 'free space: {0:.2f} {1}, required: {2:.2f} {3}'.format(hfs, fsu, hrs, rsu)
         return free_space <= required_space
 
     # in bytes
@@ -238,15 +238,15 @@ class DownloadController(object):
             # is not file or does not even exists
             return False
 
-        INFO('ddl') << 'checking existed:' << full_path
+        INFO('ddld') << 'checking existed:' << full_path
         local = md5sum(full_path)
         remote = node.md5
         if local == remote:
-            INFO('ddl') << 'skip same file'
+            INFO('ddld') << 'skip same file'
             return True
 
-        INFO('ddl') << 'expected:' << remote << 'got:' << local
-        INFO('ddl') << 'remove' << full_path
+        INFO('ddld') << 'expected:' << remote << 'got:' << local
+        INFO('ddld') << 'remove' << full_path
         full_path.unlink()
         return False
 
@@ -266,16 +266,16 @@ class DownloadController(object):
                 return True
         except OSError as e:
             if e.errno == 36:
-                WARNING('ddl') << 'download failed: file name too long'
+                WARNING('ddld') << 'download failed: file name too long'
                 return False
             # fatal unknown error
             raise
 
-        DEBUG('ddl') << 'different'
+        DEBUG('ddld') << 'different'
 
         if await self._need_recycle(node):
             if need_mtime and self._is_too_old(node):
-                DEBUG('ddl') << 'too old'
+                DEBUG('ddld') << 'too old'
                 self._abort_later()
                 return False
             await self._reserve_space(node)
@@ -305,7 +305,7 @@ class DownloadController(object):
         try:
             full_path.mkdir(parents=True, exist_ok=True)
         except OSError:
-            WARNING('ddl') << 'mkdir failed:' << full_path
+            WARNING('ddld') << 'mkdir failed:' << full_path
             return False
 
         children = await self._context.drive.get_children(node)
@@ -322,21 +322,21 @@ class DownloadController(object):
         while True:
             try:
                 remote_path = await drive.get_path(node)
-                INFO('ddl') << 'downloading:' << remote_path
+                INFO('ddld') << 'downloading:' << remote_path
                 local_hash = await drive.download_file(node, local_path)
-                INFO('ddl') << 'downloaded'
+                INFO('ddld') << 'downloaded'
             except wdg.DownloadError as e:
-                ERROR('ddl') << 'download failed:' << str(e)
+                ERROR('ddld') << 'download failed:' << str(e)
             except OSError as e:
                 if e.errno == 36:
-                    WARNING('ddl') << 'download failed: file name too long'
+                    WARNING('ddld') << 'download failed: file name too long'
                     return False
                 # fatal unknown error
                 raise
             else:
                 remote_hash = node.md5
                 if local_hash != remote_hash:
-                    INFO('ddl') << 'md5 mismatch:' << full_path
+                    INFO('ddld') << 'md5 mismatch:' << full_path
                     full_path.unlink()
                 else:
                     break

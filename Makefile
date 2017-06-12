@@ -1,7 +1,7 @@
 .PHONY: all
 
 all:
-	python -m compileall ddl
+	python -m compileall ddld
 
 test:
 	python -m unittest

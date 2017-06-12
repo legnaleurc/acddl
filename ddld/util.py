@@ -59,7 +59,7 @@ class LogQueue(logging.Handler):
 
 
 def parse_args(args):
-    parser = argparse.ArgumentParser('ddl')
+    parser = argparse.ArgumentParser('ddld')
 
     parser.add_argument('-l', '--listen', required=True, type=int)
     parser.add_argument('-r', '--root', required=True, type=str)
@@ -82,8 +82,8 @@ def main(args=None):
         'requests.packages.urllib3.connectionpool',
         'wcpan.drive.google',
         'wcpan.worker',
-        'ddl',
-    ), '/tmp/ddl.log')
+        'ddld',
+    ), '/tmp/ddld.log')
     logs = LogQueue(logging.DEBUG)
     for logger in loggers:
         logger.addHandler(logs)
@@ -113,7 +113,7 @@ def main(args=None):
     server = ths.HTTPServer(application)
     server.listen(args.listen)
 
-    INFO('ddl') << 'ready'
+    INFO('ddld') << 'ready'
 
     main_loop.start()
     main_loop.close()
