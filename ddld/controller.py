@@ -14,6 +14,9 @@ import wcpan.worker as ww
 from wcpan.logger import ERROR, WARNING, INFO, EXCEPTION, DEBUG
 
 
+off_main_thread = ww.off_main_thread_method('_pool')
+
+
 class Context(object):
 
     def __init__(self, root_path):
@@ -112,9 +115,11 @@ class DownloadController(object):
     def __init__(self, context):
         self._context = context
         self._queue = ww.AsyncQueue(4)
+        self._pool = ww.create_thread_pool()
         self._last_recycle = 0
 
     async def close(self):
+        self._pool.shutdown()
         await self._queue.stop()
 
     def download(self, node):
@@ -130,9 +135,6 @@ class DownloadController(object):
 
     def abort(self):
         self._queue.flush(lambda _: isinstance(_, LowDownloadTask))
-
-    # def _abort_later(self):
-    #     self._worker.flush_later(lambda _: isinstance(_, LowDownloadTask))
 
     def _ensure_alive(self):
         self._queue.start()
@@ -239,7 +241,7 @@ class DownloadController(object):
             return False
 
         INFO('ddld') << 'checking existed:' << full_path
-        local = md5sum(full_path)
+        local = await self._md5sum(full_path)
         remote = node.md5
         if local == remote:
             INFO('ddld') << 'skip same file'
@@ -343,6 +345,17 @@ class DownloadController(object):
 
         return True
 
+    @off_main_thread
+    def _md5sum(self, full_path):
+        hasher = hashlib.md5()
+        with full_path.open('rb') as fin:
+            while True:
+                chunk = fin.read(65536)
+                if not chunk:
+                    break
+                hasher.update(chunk)
+        return hasher.hexdigest()
+
 
 class DownloadTask(ww.Task):
 
@@ -438,17 +451,6 @@ class SearchEngine(object):
             pattern, lock = next(iter(self._searching.items()))
             await lock.wait()
         self._cache = {}
-
-
-def md5sum(full_path):
-    hasher = hashlib.md5()
-    with full_path.open('rb') as fin:
-        while True:
-            chunk = fin.read(65536)
-            if not chunk:
-                break
-            hasher.update(chunk)
-    return hasher.hexdigest()
 
 
 def preserve_mtime_by_node(full_path, node):
