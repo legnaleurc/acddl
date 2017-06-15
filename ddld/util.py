@@ -1,11 +1,13 @@
 import argparse
 import collections
+import datetime as dt
 import logging
 import math
 import os.path as op
 import signal
 import sys
 import threading
+import time
 
 from tornado import ioloop as ti, web as tw, httpserver as ths
 from wcpan.logger import setup as setup_logger, INFO
@@ -56,6 +58,12 @@ class LogQueue(logging.Handler):
         with self._socket_lock:
             for id_, ws in self._sockets.items():
                 ws.write_message(log)
+
+
+def get_local_timezone():
+    offset = time.timezone if time.daylight == 0 else time.altzone
+    offset = dt.timedelta(offset)
+    return dt.timezone(offset)
 
 
 def parse_args(args):

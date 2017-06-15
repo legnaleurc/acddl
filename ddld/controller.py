@@ -13,8 +13,11 @@ import wcpan.drive.google as wdg
 import wcpan.worker as ww
 from wcpan.logger import ERROR, WARNING, INFO, EXCEPTION, DEBUG
 
+from . import util as u
+
 
 off_main_thread = ww.off_main_thread_method('_pool')
+local_timezone = u.get_local_timezone()
 
 
 class Context(object):
@@ -166,10 +169,10 @@ class DownloadController(object):
     def _get_oldest_mtime(self):
         entries = self._get_recyclable_entries()
         if not entries:
-            return dt.datetime.fromtimestamp(0)
+            return dt.datetime.fromtimestamp(0, local_timezone)
         full_path, mtime = entries[0]
         # just convert from local TZ, no need to use UTC
-        return dt.datetime.fromtimestamp(mtime)
+        return dt.datetime.fromtimestamp(mtime, local_timezone)
 
     def _get_recyclable_entries(self):
         # get first level children
