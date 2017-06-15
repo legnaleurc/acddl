@@ -1,3 +1,4 @@
+import contextlib as cl
 import datetime as dt
 import functools as ft
 import hashlib
@@ -119,6 +120,7 @@ class DownloadController(object):
         self._queue = ww.AsyncQueue(4)
         self._pool = ww.create_thread_pool()
         self._last_recycle = 0
+        self._pending_size = 0
 
     async def close(self):
         self._pool.shutdown()
@@ -190,7 +192,8 @@ class DownloadController(object):
 
     async def _reserve_space(self, node):
         entries = None
-        while await self._need_recycle(node):
+        required_space = await self._get_node_size(node)
+        while await self._need_recycle(required_space):
             if not entries:
                 entries = self._get_recyclable_entries()
             full_path, mtime = entries.pop(0)
@@ -201,9 +204,8 @@ class DownloadController(object):
             self._last_recycle = mtime
             INFO('ddld') << 'recycled:' << full_path
 
-    async def _need_recycle(self, node):
+    async def _need_recycle(self, required_space):
         free_space = self._get_free_space()
-        required_space = await self._get_node_size(node)
         hfs, fsu = human_readable(free_space)
         hrs, rsu = human_readable(required_space)
         INFO('ddld') << 'free space: {0:.2f} {1}, required: {2:.2f} {3}'.format(hfs, fsu, hrs, rsu)
@@ -213,6 +215,7 @@ class DownloadController(object):
     def _get_free_space(self):
         s = os.statvfs(str(self._context.root))
         s = s.f_frsize * s.f_bavail
+        s = s - self._pending_size
         return s
 
     # in bytes
@@ -278,14 +281,18 @@ class DownloadController(object):
 
         DEBUG('ddld') << 'different'
 
-        if await self._need_recycle(node):
+        required_space = await self._get_node_size(node)
+        if await self._need_recycle(required_space):
             if need_mtime and self._is_too_old(node):
                 DEBUG('ddld') << 'too old'
                 self._abort_later()
                 return False
             await self._reserve_space(node)
 
-        return await self._download_glue(node, local_path, need_mtime)
+        with self._reserve_pending_file(required_space):
+            rv = await self._download_glue(node, local_path, need_mtime)
+
+        return rv
 
     async def _download_glue(self, node, local_path, need_mtime):
         if not node.is_available:
@@ -322,8 +329,8 @@ class DownloadController(object):
         return True
 
     async def _download_file(self, node, local_path, full_path):
-        # retry until succeed
         drive = self._context.drive
+        # retry until succeed
         while True:
             try:
                 remote_path = await drive.get_path(node)
@@ -358,6 +365,14 @@ class DownloadController(object):
                     break
                 hasher.update(chunk)
         return hasher.hexdigest()
+
+    @cl.contextmanager
+    def _reserve_pending_file(self, size):
+        self._pending_size = self._pending_size + size
+        try:
+            yield
+        finally:
+            self._pending_size = self._pending_size - size
 
 
 class DownloadTask(ww.Task):
