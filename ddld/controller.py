@@ -452,7 +452,7 @@ def md5sum(full_path):
 
 
 def preserve_mtime_by_node(full_path, node):
-    mtime = wa.datetime_to_timestamp(node.modified)
+    mtime = node.modified.timestamp()
     return update_mtime(full_path, mtime)
 
 
