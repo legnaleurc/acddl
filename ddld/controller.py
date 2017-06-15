@@ -17,7 +17,6 @@ from . import util as u
 
 
 off_main_thread = ww.off_main_thread_method('_pool')
-local_timezone = u.get_local_timezone()
 
 
 class Context(object):
@@ -167,6 +166,7 @@ class DownloadController(object):
         return children
 
     def _get_oldest_mtime(self):
+        local_timezone = u.get_local_timezone()
         entries = self._get_recyclable_entries()
         if not entries:
             return dt.datetime.fromtimestamp(0, local_timezone)

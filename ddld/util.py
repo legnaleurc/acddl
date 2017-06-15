@@ -62,7 +62,7 @@ class LogQueue(logging.Handler):
 
 def get_local_timezone():
     offset = time.timezone if time.daylight == 0 else time.altzone
-    offset = dt.timedelta(offset)
+    offset = dt.timedelta(seconds=offset)
     return dt.timezone(offset)
 
 
