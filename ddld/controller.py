@@ -117,7 +117,7 @@ class DownloadController(object):
 
     def __init__(self, context):
         self._context = context
-        self._queue = ww.AsyncQueue(4)
+        self._queue = ww.AsyncQueue(1)
         self._pool = ww.create_thread_pool()
         self._last_recycle = 0
         self._pending_size = 0
