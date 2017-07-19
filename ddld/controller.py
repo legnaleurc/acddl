@@ -70,7 +70,9 @@ class RootController(object):
         await self._context.close()
 
     async def search(self, pattern):
-        real_pattern = re.sub(r'(\s|-)+', '.*', pattern)
+        real_pattern = re.split(r'(?:\s|-)+', pattern)
+        real_pattern = map(re.escape, real_pattern)
+        real_pattern = '.*'.join(real_pattern)
         real_pattern = '.*{0}.*'.format(real_pattern)
         try:
             re.compile(real_pattern)
