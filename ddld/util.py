@@ -1,6 +1,7 @@
 import argparse
 import collections
 import datetime as dt
+import functools as ft
 import logging
 import math
 import os.path as op
@@ -81,6 +82,14 @@ def main(args=None):
     if args is None:
         args = sys.argv
 
+    main_loop = ti.IOLoop.instance()
+    main_loop.add_callback(amain, args)
+    main_loop.start()
+    main_loop.close()
+    return 0
+
+
+async def amain(args):
     args = parse_args(args[1:])
 
     loggers = setup_logger((
@@ -99,7 +108,7 @@ def main(args=None):
     main_loop = ti.IOLoop.instance()
     controller = RootController(args.root)
 
-    controller.initialize()
+    await controller.initialize()
 
     async def close_root():
         await controller.close()
@@ -122,8 +131,5 @@ def main(args=None):
     server.listen(args.listen)
 
     INFO('ddld') << 'ready'
-
-    main_loop.start()
-    main_loop.close()
 
     return 0

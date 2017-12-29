@@ -29,8 +29,8 @@ class Context(object):
         self._drive = wdg.Drive(self._auth_path)
         self._search_engine = SearchEngine(self._drive)
 
-    def initialize(self):
-        self._drive.initialize()
+    async def initialize(self):
+        await self._drive.initialize()
 
     async def close(self):
         await self._dl.close()
