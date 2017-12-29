@@ -63,8 +63,8 @@ class RootController(object):
         self._context = Context(cache_folder)
         self._loop = ti.IOLoop.current()
 
-    def initialize(self):
-        self._context.initialize()
+    async def initialize(self):
+        await self._context.initialize()
 
     async def close(self):
         await self._context.close()
