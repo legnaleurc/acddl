@@ -287,7 +287,7 @@ class DownloadController(object):
         if await self._need_recycle(required_space):
             if need_mtime and self._is_too_old(node):
                 DEBUG('ddld') << 'too old'
-                self._abort_later()
+                self.abort()
                 return False
             await self._reserve_space(node)
 
