@@ -22,13 +22,13 @@ class NodesHandler(tw.RequestHandler):
         controller = self.settings['controller']
         await controller.sync_db()
 
-    def delete(self, id_):
+    async def delete(self, id_):
         if id_ is None:
             self.set_status(400)
             return
 
         controller = self.settings['controller']
-        controller.trash(id_)
+        await controller.trash(id_)
 
 
 class CacheHandler(tw.RequestHandler):
