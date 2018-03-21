@@ -3,14 +3,22 @@
 
     let API = {
         nodes (args) {
-            return '/api/v1/nodes?' + args.toString();
+            const p = '/api/v1/nodes';
+            if (!args) {
+                return p;
+            }
+            if (typeof args === 'string' || args instanceof String) {
+                return `${p}/${args}`;
+            }
+            return `${p}?${args.toString()}`;
         },
 
         cache (id) {
+            const p = '/api/v1/cache';
             if (!id) {
-                return '/api/v1/cache';
+                return p;
             }
-            return '/api/v1/cache/' + id;
+            return `${p}/${id}`;
         },
 
         log () {
@@ -18,15 +26,18 @@
         },
     };
 
+
     function main () {
         return Promise.all([
             setupSearch(),
             setupDownload(),
+            setupTrash(),
             setupDoCache(),
             setupSync(),
             setupLogWatcher(),
         ]).then(_ => 0);
     }
+
 
     function setupSearch () {
         let input = document.querySelector('#search-input');
@@ -46,11 +57,13 @@
         return Promise.resolve();
     }
 
+
     function onSubmitSearch (pattern, searchResultArea) {
         return search(pattern).then((data) => {
             return appendSearchResult(searchResultArea, data);
         });
     }
+
 
     function search (pattern) {
         let args = new URLSearchParams();
@@ -65,10 +78,12 @@
         });
     }
 
+
     function appendSearchResult (searchResultArea, data) {
         data = createSearchResultList(data);
         searchResultArea.insertBefore(data, searchResultArea.firstElementChild);
     }
+
 
     function createSearchResultList (data) {
         let wrapper = document.createElement('div');
@@ -83,6 +98,7 @@
         }
         return wrapper;
     }
+
 
     function createSearchResult (resultData) {
         let wrapper = document.createElement('div');
@@ -99,6 +115,7 @@
 
         return wrapper;
     }
+
 
     function setupDownload () {
         let button = document.querySelector('#download-button');
@@ -117,6 +134,7 @@
         return Promise.resolve();
     }
 
+
     function download (idList) {
         let requests = idList.map((v) => {
             return fetch(API.cache(v), {
@@ -125,6 +143,39 @@
         });
         return Promise.all(requests);
     }
+
+
+    function setupTrash () {
+        let button = document.querySelector('#trash-button');
+
+        button.addEventListener('click', (event) => {
+            let rv = confirm('trash?');
+            if (!rv) {
+                return;
+            }
+            let list = document.querySelectorAll('#search-result .selected');
+            let idList = Array.prototype.map.call(list, (v) => {
+                return v.dataset.id;
+            });
+            trash(idList);
+            list.forEach((v) => {
+                v.classList.remove('selected');
+            });
+        });
+
+        return Promise.resolve();
+    }
+
+
+    function trash (idList) {
+        let requests = idList.map((v) => {
+            return fetch(API.nodes(v), {
+                method: 'DELETE',
+            });
+        });
+        return Promise.all(requests);
+    }
+
 
     function setupDoCache () {
         let button = document.querySelector('#do-cache-button');
@@ -135,6 +186,7 @@
 
         return Promise.resolve();
     }
+
 
     function doCache () {
         let args = new URLSearchParams();
@@ -148,6 +200,7 @@
         });
     }
 
+
     function setupSync () {
         let button = document.querySelector('#sync-button');
 
@@ -158,11 +211,13 @@
         return Promise.resolve();
     }
 
+
     function doSync () {
         return fetch(API.cache(), {
             method: 'POST',
         });
     }
+
 
     function setupLogWatcher () {
       let result = document.querySelector('#log-watcher');
@@ -195,11 +250,13 @@
       });
     }
 
+
     function formatRecord (record) {
         let a = document.createElement('pre');
         a.textContent = record.message;
         return a;
     }
+
 
     return main();
 
