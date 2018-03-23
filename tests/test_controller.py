@@ -11,27 +11,7 @@ from . import util as u
 
 class TestDownloadController(tt.AsyncTestCase):
 
-    @utm.patch('wcpan.worker.AsyncWorker', autospec=True)
-    def testDownloadLater(self, FakeAsyncWorker):
-        context = utm.Mock()
-        dc = ctrl.DownloadController(context)
-        node = utm.Mock()
-        dc.download_later(node)
-        dc._worker.start.assert_called_once_with()
-        dc._worker.do_later.assert_called_once_with(utm.ANY)
-
-    @utm.patch('wcpan.worker.AsyncWorker', autospec=True)
-    @tt.gen_test
-    def testMultipleDownloadLater(self, FakeAsyncWorker):
-        context = utm.Mock()
-        dc = ctrl.DownloadController(context)
-        dc._worker.do = u.AsyncMock()
-        dc._worker.flush = u.AsyncMock()
-        yield dc.multiple_download_later('123', '456')
-        dc._worker.start.assert_called_once_with()
-        self.assertEqual(dc._worker.flush.call_count, 1)
-
-    @utm.patch('wcpan.worker.AsyncWorker', autospec=True)
+    @utm.patch('wcpan.worker.AsyncQueue', autospec=True)
     @tt.gen_test
     def testDownloadFrom(self, FakeAsyncWorker):
         lfs = u.create_fake_local_file_system()
@@ -42,14 +22,14 @@ class TestDownloadController(tt.AsyncTestCase):
             context.search_engine.clear_cache = u.AsyncMock()
             # mock drive
             context.drive.sync = u.AsyncMock()
-            context.drive.resolve_path = functools.partial(fake_resolve_path, rfs)
+            context.drive.get_node_by_path = functools.partial(fake_resolve_path, rfs)
             context.drive.get_children = functools.partial(fake_get_children, rfs)
             # mock root
             context.root = FakePath('/local')
 
             dc = ctrl.DownloadController(context)
             yield dc._download_from('/remote')
-            self.assertEqual(dc._worker.do_later.call_count, 2)
+            self.assertEqual(dc._queue.post.call_count, 2)
 
     @utm.patch('os.utime')
     @utm.patch('os.statvfs')
@@ -61,7 +41,7 @@ class TestDownloadController(tt.AsyncTestCase):
         with utm.patch('pathlib.Path', new_callable=functools.partial(u.metapathmock, lfs)) as FakePath:
             context = utm.Mock()
             # mock drive
-            context.drive.download_node = fake_download_node
+            context.drive.download_file = fake_download_node
             context.drive.get_children = functools.partial(fake_get_children, rfs)
             context.drive.get_path = functools.partial(fake_get_path, rfs)
             # mock root
