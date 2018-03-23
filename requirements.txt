@@ -1,4 +1,4 @@
-tornado
+tornado >= 5
 wcpan.drive.google
 wcpan.logger
 wcpan.worker
