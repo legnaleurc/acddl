@@ -13,12 +13,15 @@
             return `${p}?${args.toString()}`;
         },
 
-        cache (id) {
+        cache (args) {
             const p = '/api/v1/cache';
-            if (!id) {
-                return p;
+            if (!args) {
+                return args;
             }
-            return `${p}/${id}`;
+            if (typeof args === 'string' || args instanceof String) {
+                return `${p}/${id}`;
+            }
+            return `${p}?${args.toString()}`;
         },
 
         log () {
@@ -34,6 +37,7 @@
             setupTrash(),
             setupDoCache(),
             setupSync(),
+            setupCompare(),
             setupLogWatcher(),
         ]).then(_ => 0);
     }
@@ -215,6 +219,35 @@
     function doSync () {
         return fetch(API.cache(), {
             method: 'POST',
+        });
+    }
+
+
+    function setupCompare () {
+        let button = document.querySelector('#compare-button');
+
+        button.addEventListener('click', (event) => {
+            let list = document.querySelectorAll('#search-result .selected');
+            let idList = Array.prototype.map.call(list, (v) => {
+                return v.dataset.id;
+            });
+            compare(idList);
+            list.forEach((v) => {
+                v.classList.remove('selected');
+            });
+        });
+
+        return Promise.resolve();
+    }
+
+
+    function compare (idList) {
+        let args = new URLSearchParams();
+        for (let id of idList) {
+            args.append('nodes[]', id);
+        }
+        return fetch(API.cache(args), {
+            method: 'GET',
         });
     }
 
