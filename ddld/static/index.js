@@ -16,7 +16,7 @@
         cache (args) {
             const p = '/api/v1/cache';
             if (!args) {
-                return args;
+                return p;
             }
             if (typeof args === 'string' || args instanceof String) {
                 return `${p}/${id}`;
