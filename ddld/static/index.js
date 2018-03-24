@@ -125,14 +125,8 @@
         let button = document.querySelector('#download-button');
 
         button.addEventListener('click', (event) => {
-            let list = document.querySelectorAll('#search-result .selected');
-            let idList = Array.prototype.map.call(list, (v) => {
-                return v.dataset.id;
-            });
+            let idList = getSelectedIDList();
             download(idList);
-            list.forEach((v) => {
-                v.classList.remove('selected');
-            });
         });
 
         return Promise.resolve();
@@ -157,14 +151,8 @@
             if (!rv) {
                 return;
             }
-            let list = document.querySelectorAll('#search-result .selected');
-            let idList = Array.prototype.map.call(list, (v) => {
-                return v.dataset.id;
-            });
+            let idList = getSelectedIDList();
             trash(idList);
-            list.forEach((v) => {
-                v.classList.remove('selected');
-            });
         });
 
         return Promise.resolve();
@@ -227,14 +215,8 @@
         let button = document.querySelector('#compare-button');
 
         button.addEventListener('click', (event) => {
-            let list = document.querySelectorAll('#search-result .selected');
-            let idList = Array.prototype.map.call(list, (v) => {
-                return v.dataset.id;
-            });
+            let idList = getSelectedIDList();
             compare(idList);
-            list.forEach((v) => {
-                v.classList.remove('selected');
-            });
         });
 
         return Promise.resolve();
@@ -249,6 +231,18 @@
         return fetch(API.cache(args), {
             method: 'GET',
         });
+    }
+
+
+    function getSelectedIDList () {
+        let list = document.querySelectorAll('#search-result .selected');
+        let idList = Array.prototype.map.call(list, (v) => {
+            return v.dataset.id;
+        });
+        list.forEach((v) => {
+            v.classList.remove('selected');
+        });
+        return idList;
     }
 
 
