@@ -194,7 +194,7 @@
 
     function doCache () {
         let args = new URLSearchParams();
-        args.append('acd_paths[]', '/tmp');
+        args.append('paths[]', '/tmp');
 
         return fetch(API.cache(), {
             method: 'POST',

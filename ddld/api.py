@@ -45,12 +45,12 @@ class CacheHandler(tw.RequestHandler):
     def post(self):
         controller = self.settings['controller']
 
-        acd_paths = self.get_arguments('acd_paths[]')
-        if not acd_paths:
+        paths = self.get_arguments('paths[]')
+        if not paths:
             controller.sync_db()
             return
 
-        controller.download_low(acd_paths)
+        controller.download_low(paths)
 
     def put(self, id_):
         if id_ is None:
