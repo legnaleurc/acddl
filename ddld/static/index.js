@@ -223,14 +223,32 @@
     }
 
 
-    function compare (idList) {
+    async function compare (idList) {
         let args = new URLSearchParams();
         for (let id of idList) {
             args.append('nodes[]', id);
         }
-        return fetch(API.cache(args), {
+        let rv = await fetch(API.cache(args), {
             method: 'GET',
         });
+        updateCompareResult(rv.json());
+    }
+
+
+    function updateCompareResult (result) {
+        let block = document.querySelector('#compare-result');
+        while (block.firstChild) {
+            block.firstChild.remove();
+        }
+        if (!result) {
+            block.textContent = 'OK';
+            return;
+        }
+        for (let [size, path] of result) {
+            let tmp = document.createElement('code');
+            code.textContent = `${size}: ${path}`;
+            block.appendChild(code);
+        }
     }
 
 
