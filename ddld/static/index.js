@@ -246,7 +246,7 @@
             return;
         }
         for (let [size, path] of result) {
-            let tmp = document.createElement('code');
+            let code = document.createElement('code');
             code.textContent = `${size}: ${path}`;
             block.appendChild(code);
         }
