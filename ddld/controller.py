@@ -100,7 +100,7 @@ class RootController(object):
 
         paths = (self._context.drive.get_path(_) for _ in nodes)
         paths = await tg.multi(paths)
-        return [node.size, path for node, path in zip(nodes, paths)]
+        return [(node.size, path) for node, path in zip(nodes, paths)]
 
     async def trash(self, node_id):
         await self._context.drive.trash_node_by_id(node_id)
