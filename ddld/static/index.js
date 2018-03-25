@@ -231,7 +231,8 @@
         let rv = await fetch(API.cache(args), {
             method: 'GET',
         });
-        updateCompareResult(rv.json());
+        rv = await rv.json();
+        updateCompareResult(rv);
     }
 
 
