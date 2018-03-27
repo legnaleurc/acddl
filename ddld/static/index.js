@@ -19,7 +19,7 @@
                 return p;
             }
             if (typeof args === 'string' || args instanceof String) {
-                return `${p}/${id}`;
+                return `${p}/${args}`;
             }
             return `${p}?${args.toString()}`;
         },
