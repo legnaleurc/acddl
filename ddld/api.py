@@ -2,6 +2,8 @@ import json
 
 from tornado import web as tw, websocket as tws, ioloop as ti
 
+from . import util as u
+
 
 class NodesHandler(tw.RequestHandler):
 
@@ -12,7 +14,14 @@ class NodesHandler(tw.RequestHandler):
             return
 
         controller = self.settings['controller']
-        nodes = await controller.search(pattern)
+        try:
+            nodes = await controller.search(pattern)
+        except u.InvalidPatternError:
+            self.set_status(400)
+            return
+        except u.SearchFailedError:
+            self.set_status(503)
+            return
         nodes = [{'id': k, 'name': v} for k, v in nodes.items()]
         nodes = sorted(nodes, key=lambda _: _['name'])
         nodes = json.dumps(nodes)

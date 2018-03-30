@@ -78,7 +78,7 @@ class RootController(object):
             re.compile(real_pattern)
         except Exception as e:
             EXCEPTION('ddld', e) << real_pattern
-            return []
+            raise u.InvalidPatternError(real_pattern)
 
         se = self._context.search_engine
         nodes = await se.get_nodes_by_regex(real_pattern)
@@ -457,17 +457,23 @@ class SearchEngine(object):
         if pattern in self._searching:
             lock = self._searching[pattern]
             await lock.wait()
-            return self._cache[pattern]
+            return self._cache.get(pattern, None)
 
         lock = tl.Condition()
         self._searching[pattern] = lock
-        nodes = await self._drive.find_nodes_by_regex(pattern)
-        nodes = {_.id_: self._drive.get_path(_)
-                 for _ in nodes if _.is_available}
-        nodes = await tg.multi(nodes)
-        self._cache[pattern] = nodes
-        del self._searching[pattern]
-        lock.notify_all()
+        try:
+            nodes = await self._drive.find_nodes_by_regex(pattern)
+            nodes = {_.id_: self._drive.get_path(_)
+                     for _ in nodes if _.is_available}
+            nodes = await tg.multi(nodes)
+            self._cache[pattern] = nodes
+        except Exception as e:
+            EXCEPTION('ddld', e) << 'search failed, abort'
+            raise u.SearchFailedError(str(e))
+        finally:
+            del self._searching[pattern]
+            lock.notify_all()
+
         return nodes
 
     async def clear_cache(self):

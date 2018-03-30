@@ -6,6 +6,24 @@ import threading
 import time
 
 
+class InvalidPatternError(Exception):
+
+    def __init__(self, message):
+        self._message = message
+
+    def __str__(self):
+        return self._message
+
+
+class SearchFailedError(Exception):
+
+    def __init__(self, message):
+        self._message = message
+
+    def __str__(self):
+        return self._message
+
+
 class LogQueue(logging.Handler):
 
     def __init__(self, level=logging.NOTSET):
