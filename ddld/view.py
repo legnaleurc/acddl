@@ -1,9 +1,8 @@
-from tornado import web as tw
+from aiohttp import web as aw
+import aiohttp_jinja2 as aj
 
-from .templates import index_html
 
+class IndexHandler(aw.View):
 
-class IndexHandler(tw.RequestHandler):
-
-    def get(self):
-        self.render(index_html)
+    async def get(self):
+        return aj.render_template('index.html', self.request, None)
