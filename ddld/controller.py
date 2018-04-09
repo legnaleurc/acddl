@@ -1,3 +1,4 @@
+import asyncio
 import contextlib as cl
 import datetime as dt
 import functools as ft
@@ -9,7 +10,6 @@ import re
 import shutil
 import time
 
-from tornado import ioloop as ti, gen as tg, locks as tl
 import wcpan.drive.google as wdg
 import wcpan.worker as ww
 from wcpan.logger import ERROR, WARNING, INFO, EXCEPTION, DEBUG
@@ -29,12 +29,14 @@ class Context(object):
         self._drive = wdg.Drive(self._auth_path)
         self._search_engine = SearchEngine(self._drive)
 
-    async def initialize(self):
-        await self._drive.initialize()
+    async def __aenter__(self):
+        await self._drive.__aenter__()
+        await self._dl.__aenter__()
+        return self
 
-    async def close(self):
-        await self._dl.close()
-        self._drive.close()
+    async def __aexit__(self, exc_type, exc, tb):
+        await self._dl.__aexit__(exc_type, exc, tb)
+        await self._drive.__aexit__(exc_type, exc, tb)
 
     @property
     def root(self):
@@ -61,13 +63,14 @@ class RootController(object):
 
     def __init__(self, cache_folder):
         self._context = Context(cache_folder)
-        self._loop = ti.IOLoop.current()
+        self._loop = asyncio.get_event_loop()
 
-    async def initialize(self):
-        await self._context.initialize()
+    async def __aenter__(self):
+        await self._context.__aenter__()
+        return self
 
-    async def close(self):
-        await self._context.close()
+    async def __aexit__(self, exc_type, exc, tb):
+        await self._context.__aexit__(exc_type, exc, tb)
 
     async def search(self, pattern):
         real_pattern = re.split(r'(?:\s|-)+', pattern)
@@ -85,28 +88,27 @@ class RootController(object):
         return nodes
 
     def download_high(self, node_id):
-        fn = ft.partial(self._download_glue, node_id)
-        self._loop.add_callback(fn)
+        self._loop.create_task(self._download_glue(node_id))
 
     def download_low(self, remote_paths):
         self._context.dl.multiple_download(*remote_paths)
 
     async def compare(self, node_ids):
         nodes = (self._context.drive.get_node_by_id(_) for _ in node_ids)
-        nodes = await tg.multi(nodes)
+        nodes = await asyncio.gather(*nodes)
         unique = set(_.md5 for _ in nodes)
         if len(unique) == 1:
             return None
 
         paths = (self._context.drive.get_path(_) for _ in nodes)
-        paths = await tg.multi(paths)
+        paths = await asyncio.gather(*paths)
         return [(node.size, path) for node, path in zip(nodes, paths)]
 
     async def trash(self, node_id):
         await self._context.drive.trash_node_by_id(node_id)
 
     def sync_db(self):
-        self._loop.add_callback(self._sync_glue)
+        self._loop.create_task(self._sync_glue())
 
     async def _download_glue(self, node_id):
         node = await self._context.drive.get_node_by_id(node_id)
@@ -126,7 +128,10 @@ class DownloadController(object):
         self._last_recycle = 0
         self._pending_size = 0
 
-    async def close(self):
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
         self._pool.shutdown()
         await self._queue.stop()
 
@@ -164,9 +169,9 @@ class DownloadController(object):
     async def _get_unified_children(self, remote_paths):
         children = (self._context.drive.get_node_by_path(_)
                     for _ in remote_paths)
-        children = await tg.multi(children)
+        children = await asyncio.gather(*children)
         children = (self._context.drive.get_children(_) for _ in children)
-        children = await tg.multi(children)
+        children = await asyncio.gather(*children)
         children = [_1 for _0 in children for _1 in _0]
         children = sorted(children, key=lambda _: _.modified, reverse=True)
         return children
@@ -232,7 +237,7 @@ class DownloadController(object):
 
         children = await self._context.drive.get_children(node)
         children = (self._get_node_size(_) for _ in children)
-        children = await tg.multi(children)
+        children = await asyncio.gather(*children)
         return sum(children)
 
     async def _check_existence(self, node, full_path):
@@ -456,23 +461,25 @@ class SearchEngine(object):
 
         if pattern in self._searching:
             lock = self._searching[pattern]
-            await lock.wait()
+            async with lock:
+                await lock.wait()
             return self._cache.get(pattern, None)
 
-        lock = tl.Condition()
+        lock = asyncio.Condition()
         self._searching[pattern] = lock
         try:
             nodes = await self._drive.find_nodes_by_regex(pattern)
             nodes = {_.id_: self._drive.get_path(_)
                      for _ in nodes if _.is_available}
-            nodes = await tg.multi(nodes)
+            nodes = await async_dict(nodes)
             self._cache[pattern] = nodes
         except Exception as e:
             EXCEPTION('ddld', e) << 'search failed, abort'
             raise u.SearchFailedError(str(e))
         finally:
             del self._searching[pattern]
-            lock.notify_all()
+            async with lock:
+                lock.notify_all()
 
         return nodes
 
@@ -511,3 +518,13 @@ def human_readable(bytes_):
 def is_unlinkable(full_path):
     flag = (os.W_OK | os.X_OK) if full_path.is_dir() else os.W_OK
     return os.access(full_path, flag, effective_ids=True)
+
+
+async def async_dict(dict_):
+    dict_ = (wait_for_value(k, v) for k, v in dict_.items())
+    dict_ = await asyncio.gather(*dict_)
+    return dict(dict_)
+
+
+async def wait_for_value(k, v):
+    return k, await v
