@@ -1,101 +1,118 @@
 import json
 
-from tornado import web as tw, websocket as tws, ioloop as ti
+import aiohttp
+from aiohttp import web as aw
 
 from . import util as u
 
 
-class NodesHandler(tw.RequestHandler):
+class NodesHandler(aw.View):
 
     async def get(self):
-        pattern = self.get_argument('pattern', None)
+        pattern = self.request.query.get('pattern', None)
         if not pattern:
-            self.set_status(400)
-            return
+            return aw.Response(status=400)
 
-        controller = self.settings['controller']
+        controller = self.request.app['controller']
         try:
             nodes = await controller.search(pattern)
         except u.InvalidPatternError:
-            self.set_status(400)
-            return
+            return aw.Response(status=400)
         except u.SearchFailedError:
-            self.set_status(503)
-            return
+            return aw.Response(status=503)
+
         nodes = [{'id': k, 'name': v} for k, v in nodes.items()]
         nodes = sorted(nodes, key=lambda _: _['name'])
         nodes = json.dumps(nodes)
-        self.write(nodes + '\n')
+        nodes = nodes + '\n'
+        return aw.Response(text=nodes)
 
     async def post(self):
-        controller = self.settings['controller']
+        controller = self.request.app['controller']
         await controller.sync_db()
+        return aw.Response()
 
-    async def delete(self, id_):
+    async def delete(self):
+        id_ = self.request.match_info['id']
         if id_ is None:
-            self.set_status(400)
-            return
+            return aw.Response(status=400)
 
-        controller = self.settings['controller']
+        controller = self.request.app['controller']
         await controller.trash(id_)
+        return aw.Response()
 
 
-class CacheHandler(tw.RequestHandler):
+class CacheHandler(aw.View):
 
     async def get(self):
-        nodes = self.get_arguments('nodes[]')
+        nodes = self.request.query.getall('nodes[]', None)
+        if not nodes:
+            return aw.Response(status=400)
 
-        controller = self.settings['controller']
+        controller = self.request.app['controller']
         result = await controller.compare(nodes)
-        # iDontCare
         result = json.dumps(result)
-        self.write(result)
+        result = result + '\n'
+        return aw.Response(text=result)
 
-    def post(self):
-        controller = self.settings['controller']
+    async def post(self):
+        controller = self.request.app['controller']
 
-        paths = self.get_arguments('paths[]')
+        paths = self.request.query.getall('paths[]', None)
         if not paths:
-            controller.sync_db()
-            return
+            await controller.sync_db()
+            return aw.Response()
 
         controller.download_low(paths)
+        return aw.Response()
 
-    def put(self, id_):
+    async def put(self):
+        id_ = self.request.match_info['id']
         if id_ is None:
-            self.set_status(400)
-            return
+            return aw.Response(status=400)
 
-        controller = self.settings['controller']
+        controller = self.request.app['controller']
         controller.download_high(id_)
+        return aw.Response()
 
 
-class LogHandler(tw.RequestHandler):
+class LogHandler(aw.View):
 
-    def get(self):
-        logs = self.settings['logs']
+    async def get(self):
+        logs = self.request.app['logs']
         # iDontCare
         result = json.dumps(logs.get_recent())
-        self.write(result)
+        return aw.Response(text=result)
 
 
-class LogSocketHandler(tws.WebSocketHandler):
+class LogSocketHandler(object):
 
-    _counter = 0
+    def __init__(self, app):
+        self._counter = 0
+        self._app = app
+        self._app['ws'] = set()
 
-    def open(self):
-        self._id = self._counter
-        self._counter = self._counter + 1
-        self._beat = ti.PeriodicCallback(self._ping, 20 * 1000)
-        self._beat.start()
+    async def handle(self, request):
+        ws = aw.WebSocketResponse()
+        await ws.prepare(request)
+        request.app['ws'].add(ws)
 
-        logs = self.settings['logs']
-        logs.add(self._id, self)
+        id_ = self._counter
+        self._counter += 1
 
-    def on_close(self):
-        logs = self.settings['logs']
-        logs.remove(self._id)
-        self._beat.stop()
+        logs = request.app['logs']
+        logs.add(id_, ws)
 
-    def _ping(self):
-        self.ping(b'_')
+        try:
+            async for message in ws:
+                pass
+        finally:
+            logs.remove(id_)
+            request.app['ws'].discard(ws)
+
+        return ws
+
+    async def close(self):
+        wss = set(self._app['ws'])
+        for ws in wss:
+            await ws.close(code=aiohttp.WSCloseCode.GOING_AWAY)
