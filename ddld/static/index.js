@@ -92,6 +92,15 @@
     function createSearchResultList (data) {
         let wrapper = document.createElement('div');
         wrapper.classList.add('search-group');
+
+        wrapper.addEventListener('contextmenu', (event) => {
+            event.preventDefault();
+            let entries = wrapper.querySelectorAll('.search-entry');
+            for (let entry of entries) {
+                entry.classList.toggle('selected');
+            }
+        });
+
         if (data.length <= 0) {
             wrapper.classList.add('empty');
         } else {
@@ -100,6 +109,7 @@
                 wrapper.appendChild(result);
             }
         }
+
         return wrapper;
     }
 
