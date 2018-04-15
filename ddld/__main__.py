@@ -109,11 +109,11 @@ def setup_static_and_view(app):
 
 
 def setup_api_path(app):
-    application.router.add_view(r'/api/v1/nodes', api.NodesHandler)
-    application.router.add_view(r'/api/v1/nodes/{id:[a-zA-Z0-9\-_]+}', api.NodesHandler)
-    application.router.add_view(r'/api/v1/cache', api.CacheHandler)
-    application.router.add_view(r'/api/v1/cache/{id:[a-zA-Z0-9\-_]+}', api.CacheHandler)
-    application.router.add_view(r'/api/v1/log', api.LogHandler)
+    app.router.add_view(r'/api/v1/nodes', api.NodesHandler)
+    app.router.add_view(r'/api/v1/nodes/{id:[a-zA-Z0-9\-_]+}', api.NodesHandler)
+    app.router.add_view(r'/api/v1/cache', api.CacheHandler)
+    app.router.add_view(r'/api/v1/cache/{id:[a-zA-Z0-9\-_]+}', api.CacheHandler)
+    app.router.add_view(r'/api/v1/log', api.LogHandler)
 
 
 exit_code = main()
