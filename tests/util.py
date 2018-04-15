@@ -1,27 +1,17 @@
+import asyncio
 import functools
 from unittest import mock as utm
 import datetime as dt
 import hashlib
 
-from tornado import gen as tg
 from pyfakefs import fake_filesystem as ffs
 
 
-class AsyncMock(utm.Mock):
+class AwaitHelper(object):
 
-    def __init__(self, return_value=None):
-        super(AsyncMock, self).__init__(return_value=self)
-
-        self._return_value = return_value
-        self._awaited = False
-
-    def __await__(self):
-        yield from tg.sleep(0.25)
-        self._awaited = True
-        return self._return_value
-
-    def assert_awaited(self):
-        assert self._awaited
+    def __mod__(self, awaitable):
+        loop = asyncio.get_event_loop()
+        return loop.run_until_complete(awaitable)
 
 
 class PathMock(utm.Mock):
@@ -111,6 +101,13 @@ class NodeMock(utm.Mock):
         return get_md5(fake_open, self._path)
 
 
+def create_async_mock(return_value=None):
+    loop = asyncio.get_event_loop()
+    f = loop.create_future()
+    f.set_result(return_value)
+    return utm.Mock(return_value=f)
+
+
 def create_fake_local_file_system():
     fs = ffs.FakeFilesystem()
     file_1 = fs.CreateFile('/local/file_1.txt', contents='file 1')
@@ -151,3 +148,6 @@ def get_md5(open_, path):
                 break
             hasher.update(chunk)
     return hasher.hexdigest()
+
+
+await_ = AwaitHelper()

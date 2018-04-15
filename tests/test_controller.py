@@ -1,49 +1,45 @@
-import functools
+import functools as ft
 import unittest as ut
 from unittest import mock as utm
 
 from pyfakefs import fake_filesystem as ffs
-from tornado import testing as tt
 
 from ddld import controller as ctrl
 from . import util as u
 
 
-class TestDownloadController(tt.AsyncTestCase):
+class TestDownloadController(ut.TestCase):
 
     @utm.patch('wcpan.worker.AsyncQueue', autospec=True)
-    @tt.gen_test
-    def testDownloadFrom(self, FakeAsyncWorker):
+    def testDownloadFrom(self, FakeAsyncQueue):
         lfs = u.create_fake_local_file_system()
         rfs = u.create_fake_remote_file_system()
-        with utm.patch('pathlib.Path', new_callable=functools.partial(u.metapathmock, lfs)) as FakePath:
+        with utm.patch('pathlib.Path', new_callable=ft.partial(u.metapathmock, lfs)) as FakePath:
             context = utm.Mock()
             # mock search_engine
-            context.search_engine.clear_cache = u.AsyncMock()
+            context.search_engine.clear_cache = u.create_async_mock()
             # mock drive
-            context.drive.sync = u.AsyncMock()
-            context.drive.get_node_by_path = functools.partial(fake_resolve_path, rfs)
-            context.drive.get_children = functools.partial(fake_get_children, rfs)
+            context.drive.sync = u.create_async_mock()
+            context.drive.get_node_by_path = ft.partial(fake_resolve_path, rfs)
+            context.drive.get_children = ft.partial(fake_get_children, rfs)
             # mock root
             context.root = FakePath('/local')
 
             dc = ctrl.DownloadController(context)
-            yield dc._download_from('/remote')
+            u.await_ % dc._download_from('/remote')
             self.assertEqual(dc._queue.post.call_count, 2)
 
     @utm.patch('os.utime')
     @utm.patch('os.statvfs')
-    @utm.patch('wcpan.worker.AsyncWorker', autospec=True)
-    @tt.gen_test
-    def testDownload(self, FakeAsyncWorker, fake_statvfs, fake_utime):
+    def testDownload(self, fake_statvfs, fake_utime):
         lfs = u.create_fake_local_file_system()
         rfs = u.create_fake_remote_file_system()
-        with utm.patch('pathlib.Path', new_callable=functools.partial(u.metapathmock, lfs)) as FakePath:
+        with utm.patch('pathlib.Path', new_callable=ft.partial(u.metapathmock, lfs)) as FakePath:
             context = utm.Mock()
             # mock drive
             context.drive.download_file = fake_download_node
-            context.drive.get_children = functools.partial(fake_get_children, rfs)
-            context.drive.get_path = functools.partial(fake_get_path, rfs)
+            context.drive.get_children = ft.partial(fake_get_children, rfs)
+            context.drive.get_path = ft.partial(fake_get_path, rfs)
             # mock root
             context.root = FakePath('/local')
             # mock os
@@ -53,7 +49,7 @@ class TestDownloadController(tt.AsyncTestCase):
             vfs.f_bavail = 10 * 1024 ** 3
 
             dc = ctrl.DownloadController(context)
-            yield dc._download(u.NodeMock(rfs, '/remote/folder_2'), context.root, True)
+            u.await_ % dc._download(u.NodeMock(rfs, '/remote/folder_2'), context.root, True)
 
             l_fake_os = ffs.FakeOsModule(lfs)
             self.assertTrue(l_fake_os.path.isdir('/local/folder_2'))
