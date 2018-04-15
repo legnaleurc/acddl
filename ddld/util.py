@@ -1,5 +1,7 @@
+import asyncio
 import collections
 import datetime as dt
+import json
 import logging
 import math
 import threading
@@ -34,6 +36,7 @@ class LogQueue(logging.Handler):
         # log may happens in other threads, while the sockets may be removed in
         # the main thread
         self._socket_lock = threading.Lock()
+        self._loop = asyncio.get_event_loop()
 
     def emit(self, record):
         log = {
@@ -42,7 +45,7 @@ class LogQueue(logging.Handler):
             'thread': record.threadName,
             'message': record.message,
         }
-        self._push(log)
+        self._loop.create_task(self._push(log))
 
     def get_recent(self):
         return list(self._queue)
@@ -61,11 +64,13 @@ class LogQueue(logging.Handler):
             del self._sockets[id_]
             return True
 
-    def _push(self, log):
+    async def _push(self, log):
         self._queue.append(log)
+        log = json.dumps(log)
         with self._socket_lock:
             for id_, ws in self._sockets.items():
-                ws.write_message(log)
+                # TODO catch exceptions
+                await ws.send_str(log)
 
 
 def get_local_timezone():
