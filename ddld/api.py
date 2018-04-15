@@ -27,11 +27,6 @@ class NodesHandler(aw.View):
         nodes = nodes + '\n'
         return aw.Response(text=nodes)
 
-    async def post(self):
-        controller = self.request.app['controller']
-        controller.sync_db()
-        return aw.Response()
-
     async def delete(self):
         id_ = self.request.match_info['id']
         if id_ is None:
