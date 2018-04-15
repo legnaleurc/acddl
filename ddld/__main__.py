@@ -45,7 +45,7 @@ async def amain(args):
         'wcpan.drive.google',
         'wcpan.worker',
         'ddld',
-    ))
+    ), '/tmp/ddld.log')
     logs = util.LogQueue(logging.DEBUG)
     for logger in loggers:
         logger.addHandler(logs)
