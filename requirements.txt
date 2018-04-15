@@ -1,4 +1,5 @@
-tornado >= 5
-wcpan.drive.google
+aiohttp >= 3
+aiohttp-jinja2
+wcpan.drive.google >= 2
 wcpan.logger
-wcpan.worker
+wcpan.worker >= 2
