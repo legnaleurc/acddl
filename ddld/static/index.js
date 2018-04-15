@@ -277,18 +277,8 @@
 
     function setupLogWatcher () {
       let result = document.querySelector('#log-watcher');
-      let ws = new WebSocket(`ws://${location.host}/api/v1/socket`);
 
-      ws.addEventListener('message', function (event) {
-          let record = formatRecord(JSON.parse(event.data));
-          result.insertBefore(record, result.firstElementChild);
-      });
-      ws.addEventListener('close', function (event) {
-          console.info('close', event);
-      });
-      ws.addEventListener('error', function (event) {
-          console.info('error', event);
-      });
+      setupLogSocket(result);
 
       let headers = new Headers();
       headers.set('Cache-Control', 'no-store');
@@ -304,6 +294,25 @@
               result.appendChild(record);
           });
       });
+    }
+
+
+    function setupLogSocket (resultBlock) {
+        let ws = new WebSocket(`ws://${location.host}/api/v1/socket`);
+        ws.addEventListener('message', (event) => {
+            let record = formatRecord(JSON.parse(event.data));
+            resultBlock.insertBefore(record, resultBlock.firstElementChild);
+        });
+        ws.addEventListener('close', (event) => {
+            console.info('close', event);
+            setupLogSocket(resultBlock);
+        });
+        ws.addEventListener('error', (event) => {
+            console.info('error', event);
+            setTimeout(() => {
+                setupLogSocket(resultBlock);
+            }, 5 * 1000);
+        });
     }
 
 
