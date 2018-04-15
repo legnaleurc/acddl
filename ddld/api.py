@@ -53,7 +53,8 @@ class CacheHandler(aw.View):
     async def post(self):
         controller = self.request.app['controller']
 
-        paths = self.request.query.getall('paths[]', None)
+        kwargs = await self.request.post()
+        paths = kwargs.getall('paths[]', None)
         if not paths:
             controller.sync_db()
             return aw.Response()
