@@ -29,7 +29,7 @@ class NodesHandler(aw.View):
 
     async def post(self):
         controller = self.request.app['controller']
-        await controller.sync_db()
+        controller.sync_db()
         return aw.Response()
 
     async def delete(self):
@@ -60,7 +60,7 @@ class CacheHandler(aw.View):
 
         paths = self.request.query.getall('paths[]', None)
         if not paths:
-            await controller.sync_db()
+            controller.sync_db()
             return aw.Response()
 
         controller.download_low(paths)
