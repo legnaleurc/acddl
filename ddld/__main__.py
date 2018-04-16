@@ -83,7 +83,7 @@ class ControllerContext(object):
 class ServerContext(object):
 
     def __init__(self, app, port):
-        log_format = '%s %r (%b) %Dms'
+        log_format = '%s %r (%b) %Tfs'
         self._runner = aw.AppRunner(app, access_log_format=log_format)
         self._port = port
 
