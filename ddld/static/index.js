@@ -163,9 +163,7 @@
             }
             // HACK trash is slow, dont do too much at the sametime
             let idList = getSelectedIDList();
-            for (let subList of chunk(idList, 8)) {
-                await trash(idList);
-            }
+            trash(idList);
         });
 
         return Promise.resolve();
@@ -323,13 +321,6 @@
         let a = document.createElement('pre');
         a.textContent = record.message;
         return a;
-    }
-
-
-    function * chunk (array, size) {
-        for (let i = 0; i < array.length; i += size) {
-            yield array.slice(i, i + size);
-        }
     }
 
 
