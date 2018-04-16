@@ -463,7 +463,10 @@ class SearchEngine(object):
             lock = self._searching[pattern]
             async with lock:
                 await lock.wait()
-            return self._cache.get(pattern, None)
+            try:
+                return self._cache[pattern]
+            except KeyError:
+                raise u.SearchFailedError('{0} canceled search'.format(pattern))
 
         lock = asyncio.Condition()
         self._searching[pattern] = lock
