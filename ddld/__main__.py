@@ -8,7 +8,7 @@ import sys
 from aiohttp import web as aw
 import aiohttp_jinja2 as aj
 import jinja2
-from wcpan.logger import setup as setup_logger, INFO
+from wcpan.logger import setup as setup_logger, INFO, EXCEPTION
 
 from . import util, api, view
 from .controller import RootController
@@ -38,6 +38,8 @@ class Daemon(object):
     async def _guard(self):
         try:
             return await self._main()
+        except Exception as e:
+            EXCEPTION('ddld', e)
         finally:
             self._loop.stop()
         return 1
