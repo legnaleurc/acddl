@@ -28,14 +28,21 @@ class Daemon(object):
         ), '/tmp/ddld.log')
 
     def __call__(self):
-        self._loop.create_task(self._amain())
+        self._loop.create_task(self._guard())
         self._loop.add_signal_handler(signal.SIGINT, self._close)
         self._loop.run_forever()
         self._loop.close()
 
         return 0
 
-    async def _amain(self):
+    async def _guard(self):
+        try:
+            return await self._main()
+        finally:
+            self._loop.stop()
+        return 1
+
+    async def _main(self):
         app = aw.Application()
 
         setup_static_and_view(app)
@@ -47,7 +54,6 @@ class Daemon(object):
             INFO('ddld') << 'ready'
             await self._until_finished()
 
-        self._loop.stop()
         return 0
 
     async def _until_finished(self):
