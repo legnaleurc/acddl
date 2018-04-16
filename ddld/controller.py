@@ -120,6 +120,8 @@ class RootController(object):
 
     async def _trash_glue(self, node_id):
         await self._context.drive.trash_node_by_id(node_id)
+        path = await self._context.drive.get_path_by_id(node_id)
+        self._context.search_engine.drop_value(path)
 
 
 class DownloadController(object):
@@ -494,6 +496,12 @@ class SearchEngine(object):
             pattern, lock = next(iter(self._searching.items()))
             await lock.wait()
         self._cache = {}
+
+    def drop_value(self, value):
+        keys = list(self._cache.keys())
+        for k in keys:
+            if re.search(k, value, re.I):
+                del self._cache[k]
 
 
 def preserve_mtime_by_node(full_path, node):
