@@ -14,74 +14,99 @@ from . import util, api, view
 from .controller import RootController
 
 
-class DaemonHelper(object):
+class Daemon(object):
 
-    def __init__(self):
+    def __init__(self, args):
+        self._kwargs = parse_args(args[1:])
+        self._loop = asyncio.get_event_loop()
         self._finished = asyncio.Event()
+        self._loggers = setup_logger((
+            'aiohttp',
+            'wcpan.drive.google',
+            'wcpan.worker',
+            'ddld',
+        ), '/tmp/ddld.log')
 
-    def on_stop(self):
-        self._finished.set()
+    def __call__(self):
+        self._loop.create_task(self._amain())
+        self._loop.add_signal_handler(signal.SIGINT, self._close)
+        self._loop.run_forever()
+        self._loop.close()
 
-    async def start(self):
+        return 0
+
+    async def _amain(self):
+        app = aw.Application()
+
+        setup_static_and_view(app)
+        setup_api_path(app)
+
+        async with ControllerContext(app, self._kwargs.root), \
+                   LoggerContext(app, self._loggers), \
+                   ServerContext(app, self._kwargs.listen):
+            INFO('ddld') << 'ready'
+            await self._until_finished()
+
+        self._loop.stop()
+        return 0
+
+    async def _until_finished(self):
         await self._finished.wait()
 
-
-def main(args=None):
-    if args is None:
-        args = sys.argv
-
-    main_loop = asyncio.get_event_loop()
-    main_loop.create_task(amain(args))
-    main_loop.run_forever()
-    main_loop.close()
-    return 0
+    def _close(self):
+        self._finished.set()
 
 
-async def amain(args):
-    args = parse_args(args[1:])
+class ControllerContext(object):
 
-    loggers = setup_logger((
-        'aiohttp',
-        'wcpan.drive.google',
-        'wcpan.worker',
-        'ddld',
-    ), '/tmp/ddld.log')
-    logs = util.LogQueue(logging.DEBUG)
-    for logger in loggers:
-        logger.addHandler(logs)
+    def __init__(self, app, root_path):
+        self._app = app
+        self._ctrl = RootController(root_path)
 
-    main_loop = asyncio.get_event_loop()
+    async def __aenter__(self):
+        await self._ctrl.__aenter__()
+        self._app['controller'] = self._ctrl
+        return self._ctrl
 
-    application = aw.Application()
+    async def __aexit__(self, exc_type, exc, tb):
+        await self._ctrl.__aexit__(exc_type, exc, tb)
 
-    setup_static_and_view(application)
-    setup_api_path(application)
 
-    lsh = api.LogSocketHandler(application)
-    application.router.add_view(r'/api/v1/socket', lsh.handle)
+class ServerContext(object):
 
-    daemon = DaemonHelper()
-    main_loop.add_signal_handler(signal.SIGINT, daemon.on_stop)
+    def __init__(self, app, port):
+        self._runner = aw.AppRunner(app)
+        self._port = port
 
-    async with RootController(args.root) as controller:
-        application['controller'] = controller
-        application['logs'] = logs
-
-        runner = aw.AppRunner(application)
-        await runner.setup()
-        site = aw.TCPSite(runner, port=args.listen)
+    async def __aenter__(self):
+        await self._runner.setup()
+        site = aw.TCPSite(self._runner, port=self._port)
         await site.start()
+        return self._runner
 
-        INFO('ddld') << 'ready'
+    async def __aexit__(self, exc_type, exc, tb):
+        await self._runner.cleanup()
 
-        await daemon.start()
 
-        await lsh.close()
-        await runner.cleanup()
+class LoggerContext(object):
 
-    main_loop.stop()
+    def __init__(self, app, loggers):
+        self._lsh = api.LogSocketHandler(app)
+        self._app = app
+        self._loggers = loggers
 
-    return 0
+    async def __aenter__(self):
+        lq = util.LogQueue(logging.DEBUG)
+        for logger in self._loggers:
+            logger.addHandler(lq)
+
+        self._app['logs'] = lq
+        self._app.router.add_view(r'/api/v1/socket', self._lsh.handle)
+
+        return self._lsh
+
+    async def __aexit__(self, exc_type, exc, tb):
+        await self._lsh.close()
 
 
 def parse_args(args):
@@ -116,5 +141,6 @@ def setup_api_path(app):
     app.router.add_view(r'/api/v1/log', api.LogHandler)
 
 
+main = Daemon(sys.argv)
 exit_code = main()
 sys.exit(exit_code)
