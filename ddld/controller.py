@@ -104,8 +104,8 @@ class RootController(object):
         paths = await asyncio.gather(*paths)
         return [(node.size, path) for node, path in zip(nodes, paths)]
 
-    async def trash(self, node_id):
-        await self._context.drive.trash_node_by_id(node_id)
+    def trash(self, node_id):
+        self._loop.create_task(self._trash_glue(node_id))
 
     def sync_db(self):
         self._loop.create_task(self._sync_glue())
@@ -117,6 +117,9 @@ class RootController(object):
     async def _sync_glue(self):
         await self._context.search_engine.clear_cache()
         await self._context.drive.sync()
+
+    async def _trash_glue(self, node_id):
+        await self._context.drive.trash_node_by_id(node_id)
 
 
 class DownloadController(object):

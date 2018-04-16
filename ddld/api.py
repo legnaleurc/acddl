@@ -33,7 +33,7 @@ class NodesHandler(aw.View):
             return aw.Response(status=400)
 
         controller = self.request.app['controller']
-        await controller.trash(id_)
+        controller.trash(id_)
         return aw.Response()
 
 
