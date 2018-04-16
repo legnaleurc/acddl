@@ -83,7 +83,8 @@ class ControllerContext(object):
 class ServerContext(object):
 
     def __init__(self, app, port):
-        self._runner = aw.AppRunner(app)
+        log_format = '%s %r (%b) %Dms'
+        self._runner = aw.AppRunner(app, access_log_format=log_format)
         self._port = port
 
     async def __aenter__(self):
