@@ -100,7 +100,7 @@ class LoggerContext(object):
         for logger in self._loggers:
             logger.addHandler(lq)
 
-        self._app['logs'] = lq
+        self._app['log_queue'] = lq
         self._app.router.add_view(r'/api/v1/socket', self._lsh.handle)
 
         return self._lsh

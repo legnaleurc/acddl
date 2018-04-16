@@ -75,9 +75,9 @@ class CacheHandler(aw.View):
 class LogHandler(aw.View):
 
     async def get(self):
-        logs = self.request.app['logs']
+        log_queue = self.request.app['log_queue']
         # iDontCare
-        result = json.dumps(logs.get_recent())
+        result = json.dumps(log_queue.get_recent())
         return aw.Response(text=result)
 
 
@@ -96,14 +96,14 @@ class LogSocketHandler(object):
         id_ = self._counter
         self._counter += 1
 
-        logs = request.app['logs']
-        logs.add(id_, ws)
+        log_queue = request.app['log_queue']
+        log_queue.add(id_, ws)
 
         try:
             async for message in ws:
                 pass
         finally:
-            logs.remove(id_)
+            log_queue.remove(id_)
             request.app['ws'].discard(ws)
 
         return ws
