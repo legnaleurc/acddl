@@ -456,6 +456,7 @@ class SearchEngine(object):
         super(SearchEngine, self).__init__()
         # NOTE only takes a reference, do not do clean up
         self._drive = drive
+        self._loop = asyncio.get_event_loop()
         self._cache = {}
         self._searching = {}
 
@@ -466,15 +467,27 @@ class SearchEngine(object):
 
         if pattern in self._searching:
             lock = self._searching[pattern]
-            async with lock:
-                await lock.wait()
-            try:
-                return self._cache[pattern]
-            except KeyError:
-                raise u.SearchFailedError('{0} canceled search'.format(pattern))
+            return await self._wait_for_result(lock, pattern)
 
         lock = asyncio.Condition()
         self._searching[pattern] = lock
+        self._loop.create_task(self._search(pattern))
+        return await self._wait_for_result(lock, pattern)
+
+    async def clear_cache(self):
+        while len(self._searching) > 0:
+            pattern, lock = next(iter(self._searching.items()))
+            await lock.wait()
+        self._cache = {}
+
+    def drop_value(self, value):
+        keys = list(self._cache.keys())
+        for k in keys:
+            if re.search(k, value, re.I):
+                del self._cache[k]
+
+    async def _search(self, pattern):
+        lock = self._searching[pattern]
         try:
             nodes = await self._drive.find_nodes_by_regex(pattern)
             nodes = {_.id_: self._drive.get_path(_)
@@ -489,19 +502,13 @@ class SearchEngine(object):
             async with lock:
                 lock.notify_all()
 
-        return nodes
-
-    async def clear_cache(self):
-        while len(self._searching) > 0:
-            pattern, lock = next(iter(self._searching.items()))
+    async def _wait_for_result(self, lock, pattern):
+        async with lock:
             await lock.wait()
-        self._cache = {}
-
-    def drop_value(self, value):
-        keys = list(self._cache.keys())
-        for k in keys:
-            if re.search(k, value, re.I):
-                del self._cache[k]
+        try:
+            return self._cache[pattern]
+        except KeyError:
+            raise u.SearchFailedError('{0} canceled search'.format(pattern))
 
 
 def preserve_mtime_by_node(full_path, node):
