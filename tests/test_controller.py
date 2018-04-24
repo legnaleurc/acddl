@@ -79,6 +79,13 @@ class TestDownloadTask(ut.TestCase):
         return ctrl.LowDownloadTask(a, b, a)
 
 
+class TestSearchEngine(ut.TestCase):
+
+    def testNormalization(self):
+        rv = ctrl.normalize_search_pattern(r'abc')
+        self.assertEqual(rv, r'.*abc.*')
+
+
 async def fake_resolve_path(fs, remote_path):
     return u.NodeMock(fs, remote_path)
 
