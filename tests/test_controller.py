@@ -85,13 +85,16 @@ class TestSearchEngine(ut.TestCase):
         fn = ctrl.normalize_search_pattern
 
         rv = fn(r'abc')
-        self.assertEqual(rv, r'.*abc.*')
+        self.assertEqual(rv, r'.*(abc).*')
 
         rv = fn(r'abc-def')
-        self.assertEqual(rv, r'.*abc.*def.*')
+        self.assertEqual(rv, r'.*(abc.*def).*')
 
         rv = fn(r'abc def')
-        self.assertEqual(rv, r'.*abc.*def.*')
+        self.assertEqual(rv, r'.*(abc.*def).*')
+
+        rv = fn(r'abc (def)')
+        self.assertEqual(rv, r'.*(abc|def).*')
 
 
 async def fake_resolve_path(fs, remote_path):
