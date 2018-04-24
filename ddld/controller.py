@@ -549,8 +549,19 @@ async def wait_for_value(k, v):
 
 
 def normalize_search_pattern(raw):
-    real = re.split(r'(?:\s|-)+', raw)
-    real = map(re.escape, real)
-    real = '.*'.join(real)
-    real = '.*{0}.*'.format(real)
-    return real
+    rv = re.match(r'(.+?)\s*\((.+)\)', raw)
+    if rv:
+        rv = rv.groups()
+    else:
+        rv = (raw,)
+    rv = map(inner_normalize_search_pattern, rv)
+    rv = '|'.join(rv)
+    rv = '.*({0}).*'.format(rv)
+    return rv
+
+
+def inner_normalize_search_pattern(raw):
+    rv = re.split(r'(?:\s|-)+', raw)
+    rv = map(re.escape, rv)
+    rv = '.*'.join(rv)
+    return rv
