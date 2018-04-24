@@ -82,8 +82,16 @@ class TestDownloadTask(ut.TestCase):
 class TestSearchEngine(ut.TestCase):
 
     def testNormalization(self):
-        rv = ctrl.normalize_search_pattern(r'abc')
+        fn = ctrl.normalize_search_pattern
+
+        rv = fn(r'abc')
         self.assertEqual(rv, r'.*abc.*')
+
+        rv = fn(r'abc-def')
+        self.assertEqual(rv, r'.*abc.*def.*')
+
+        rv = fn(r'abc def')
+        self.assertEqual(rv, r'.*abc.*def.*')
 
 
 async def fake_resolve_path(fs, remote_path):
