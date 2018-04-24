@@ -73,10 +73,7 @@ class RootController(object):
         await self._context.__aexit__(exc_type, exc, tb)
 
     async def search(self, pattern):
-        real_pattern = re.split(r'(?:\s|-)+', pattern)
-        real_pattern = map(re.escape, real_pattern)
-        real_pattern = '.*'.join(real_pattern)
-        real_pattern = '.*{0}.*'.format(real_pattern)
+        real_pattern = normalize_search_pattern(pattern)
         try:
             re.compile(real_pattern)
         except Exception as e:
@@ -549,3 +546,11 @@ async def async_dict(dict_):
 
 async def wait_for_value(k, v):
     return k, await v
+
+
+def normalize_search_pattern(raw):
+    real = re.split(r'(?:\s|-)+', raw)
+    real = map(re.escape, real)
+    real = '.*'.join(real)
+    real = '.*{0}.*'.format(real)
+    return real
