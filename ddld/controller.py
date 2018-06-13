@@ -367,7 +367,7 @@ class DownloadController(object):
 
         return True
 
-    def _md5sum(self, full_path):
+    async def _md5sum(self, full_path):
         return await self._pool.run_in_executor(self._pool, md5sum, full_path)
 
     @cl.contextmanager
