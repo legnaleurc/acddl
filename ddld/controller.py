@@ -1,4 +1,5 @@
 import asyncio
+import concurrent.futures as cf
 import contextlib as cl
 import datetime as dt
 import functools as ft
@@ -15,9 +16,6 @@ import wcpan.worker as ww
 from wcpan.logger import ERROR, WARNING, INFO, EXCEPTION, DEBUG
 
 from . import util as u
-
-
-off_main_thread = ww.off_main_thread_method('_pool')
 
 
 class Context(object):
@@ -126,7 +124,8 @@ class DownloadController(object):
     def __init__(self, context):
         self._context = context
         self._queue = ww.AsyncQueue(1)
-        self._pool = ww.create_thread_pool()
+        self._loop = asyncio.get_event_loop()
+        self._pool = cf.ProcessPoolExecutor()
         self._last_recycle = 0
         self._pending_size = 0
 
@@ -368,16 +367,8 @@ class DownloadController(object):
 
         return True
 
-    @off_main_thread
     def _md5sum(self, full_path):
-        hasher = hashlib.md5()
-        with full_path.open('rb') as fin:
-            while True:
-                chunk = fin.read(65536)
-                if not chunk:
-                    break
-                hasher.update(chunk)
-        return hasher.hexdigest()
+        return await self._pool.run_in_executor(self._pool, md5sum, full_path)
 
     @cl.contextmanager
     def _reserve_pending_file(self, size):
@@ -566,3 +557,14 @@ def inner_normalize_search_pattern(raw):
     rv = map(re.escape, rv)
     rv = '.*'.join(rv)
     return rv
+
+
+def md5sum(full_path):
+    hasher = hashlib.md5()
+    with full_path.open('rb') as fin:
+        while True:
+            chunk = fin.read(65536)
+            if not chunk:
+                break
+            hasher.update(chunk)
+    return hasher.hexdigest()
