@@ -368,7 +368,7 @@ class DownloadController(object):
         return True
 
     async def _md5sum(self, full_path):
-        return await self._pool.run_in_executor(self._pool, md5sum, full_path)
+        return await self._loop.run_in_executor(self._pool, md5sum, full_path)
 
     @cl.contextmanager
     def _reserve_pending_file(self, size):
