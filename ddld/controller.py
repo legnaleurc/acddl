@@ -11,6 +11,7 @@ import re
 import shutil
 import time
 
+import async_exit_stack as aes
 import wcpan.drive.google as wdg
 import wcpan.worker as ww
 from wcpan.logger import ERROR, WARNING, INFO, EXCEPTION, DEBUG
@@ -26,15 +27,18 @@ class Context(object):
         self._dl = DownloadController(self)
         self._drive = wdg.Drive(self._auth_path)
         self._search_engine = SearchEngine(self._drive)
+        self._raii = None
 
     async def __aenter__(self):
-        await self._drive.__aenter__()
-        await self._dl.__aenter__()
+        async with aes.AsyncExitStack() as stack:
+            await stack.enter_async_context(self._drive)
+            await stack.enter_async_context(self._dl)
+            self._raii = stack.pop_all()
         return self
 
-    async def __aexit__(self, exc_type, exc, tb):
-        await self._dl.__aexit__(exc_type, exc, tb)
-        await self._drive.__aexit__(exc_type, exc, tb)
+    async def __aexit__(self, type_, value, traceback):
+        await self._raii.aclose()
+        self._raii = None
 
     @property
     def root(self):
@@ -62,13 +66,17 @@ class RootController(object):
     def __init__(self, cache_folder):
         self._context = Context(cache_folder)
         self._loop = asyncio.get_event_loop()
+        self._raii = None
 
     async def __aenter__(self):
-        await self._context.__aenter__()
+        async with aes.AsyncExitStack() as stack:
+            await stack.enter_async_context(self._context)
+            self._raii = stack.pop_all()
         return self
 
-    async def __aexit__(self, exc_type, exc, tb):
-        await self._context.__aexit__(exc_type, exc, tb)
+    async def __aexit__(self, type_, value, traceback):
+        await self._raii.aclose()
+        self._raii = None
 
     async def search(self, pattern):
         real_pattern = normalize_search_pattern(pattern)
@@ -125,16 +133,18 @@ class DownloadController(object):
         self._context = context
         self._queue = ww.AsyncQueue(1)
         self._loop = asyncio.get_event_loop()
-        self._pool = cf.ProcessPoolExecutor()
         self._last_recycle = 0
         self._pending_size = 0
+        self._pool = None
 
     async def __aenter__(self):
+        self._pool = cf.ProcessPoolExecutor()
         return self
 
     async def __aexit__(self, exc_type, exc, tb):
         self._pool.shutdown()
         await self._queue.stop()
+        self._pool = None
 
     def download(self, node):
         self._ensure_alive()
