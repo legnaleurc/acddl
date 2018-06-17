@@ -123,15 +123,6 @@ def create_fake_remote_file_system():
     return fs
 
 
-def metapathmock(fs, *args, **kwargs):
-    class ConcretePathMock(PathMock):
-
-        def __init__(self, *args, **kwargs):
-            super(ConcretePathMock, self).__init__(fs, *args, **kwargs)
-
-    return ConcretePathMock
-
-
 def get_md5(open_, path):
     hasher = hashlib.md5()
     with open_(path, 'rb') as fin:

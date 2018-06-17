@@ -1,3 +1,4 @@
+import concurrent.futures as cf
 import functools as ft
 import unittest as ut
 from unittest import mock as utm
@@ -12,11 +13,13 @@ from . import util as u
 class TestDownloadController(ut.TestCase):
 
     @utm.patch('wcpan.worker.AsyncQueue', autospec=True)
+    @utm.patch('concurrent.futures.ProcessPoolExecutor', new=cf.ThreadPoolExecutor)
     @ww.sync
     async def testDownloadFrom(self, FakeAsyncQueue):
         lfs = u.create_fake_local_file_system()
         rfs = u.create_fake_remote_file_system()
-        with utm.patch('pathlib.Path', new_callable=ft.partial(u.metapathmock, lfs)) as FakePath:
+        fake_path_class = ft.partial(u.PathMock, lfs)
+        with utm.patch('pathlib.Path', new=fake_path_class) as FakePath:
             context = utm.Mock()
             # mock search_engine
             context.search_engine.clear_cache = u.create_async_mock()
@@ -33,11 +36,13 @@ class TestDownloadController(ut.TestCase):
 
     @utm.patch('os.utime')
     @utm.patch('os.statvfs')
+    @utm.patch('concurrent.futures.ProcessPoolExecutor', new=cf.ThreadPoolExecutor)
     @ww.sync
     async def testDownload(self, fake_statvfs, fake_utime):
         lfs = u.create_fake_local_file_system()
         rfs = u.create_fake_remote_file_system()
-        with utm.patch('pathlib.Path', new_callable=ft.partial(u.metapathmock, lfs)) as FakePath:
+        fake_path_class = ft.partial(u.PathMock, lfs)
+        with utm.patch('pathlib.Path', new=fake_path_class) as FakePath:
             context = utm.Mock()
             # mock drive
             context.drive.download_file = fake_download_node
