@@ -3,6 +3,7 @@ import unittest as ut
 from unittest import mock as utm
 
 from pyfakefs import fake_filesystem as ffs
+import wcpan.worker as ww
 
 from ddld import controller as ctrl
 from . import util as u
@@ -11,7 +12,8 @@ from . import util as u
 class TestDownloadController(ut.TestCase):
 
     @utm.patch('wcpan.worker.AsyncQueue', autospec=True)
-    def testDownloadFrom(self, FakeAsyncQueue):
+    @ww.sync
+    async def testDownloadFrom(self, FakeAsyncQueue):
         lfs = u.create_fake_local_file_system()
         rfs = u.create_fake_remote_file_system()
         with utm.patch('pathlib.Path', new_callable=ft.partial(u.metapathmock, lfs)) as FakePath:
@@ -26,12 +28,13 @@ class TestDownloadController(ut.TestCase):
             context.root = FakePath('/local')
 
             dc = ctrl.DownloadController(context)
-            u.await_ % dc._download_from('/remote')
+            await dc._download_from('/remote')
             self.assertEqual(dc._queue.post.call_count, 2)
 
     @utm.patch('os.utime')
     @utm.patch('os.statvfs')
-    def testDownload(self, fake_statvfs, fake_utime):
+    @ww.sync
+    async def testDownload(self, fake_statvfs, fake_utime):
         lfs = u.create_fake_local_file_system()
         rfs = u.create_fake_remote_file_system()
         with utm.patch('pathlib.Path', new_callable=ft.partial(u.metapathmock, lfs)) as FakePath:
@@ -49,7 +52,7 @@ class TestDownloadController(ut.TestCase):
             vfs.f_bavail = 10 * 1024 ** 3
 
             dc = ctrl.DownloadController(context)
-            u.await_ % dc._download(u.NodeMock(rfs, '/remote/folder_2'), context.root, True)
+            await dc._download(u.NodeMock(rfs, '/remote/folder_2'), context.root, True)
 
             l_fake_os = ffs.FakeOsModule(lfs)
             self.assertTrue(l_fake_os.path.isdir('/local/folder_2'))

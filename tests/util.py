@@ -7,13 +7,6 @@ import hashlib
 from pyfakefs import fake_filesystem as ffs
 
 
-class AwaitHelper(object):
-
-    def __mod__(self, awaitable):
-        loop = asyncio.get_event_loop()
-        return loop.run_until_complete(awaitable)
-
-
 class PathMock(utm.Mock):
 
     def __init__(self, fs=None, *pathsegments, **kwargs):
@@ -148,6 +141,3 @@ def get_md5(open_, path):
                 break
             hasher.update(chunk)
     return hasher.hexdigest()
-
-
-await_ = AwaitHelper()
