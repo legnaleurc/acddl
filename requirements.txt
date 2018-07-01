@@ -1,5 +1,6 @@
 aiohttp >= 3
 aiohttp-jinja2
-wcpan.drive.google >= 2
+arrow
+wcpan.drive.google ~= 3.0.0
 wcpan.logger
 wcpan.worker >= 2

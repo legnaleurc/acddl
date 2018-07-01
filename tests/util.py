@@ -1,9 +1,9 @@
 import asyncio
 import functools
 from unittest import mock as utm
-import datetime as dt
 import hashlib
 
+import arrow
 from pyfakefs import fake_filesystem as ffs
 
 
@@ -72,11 +72,11 @@ class NodeMock(utm.Mock):
     @property
     def modified(self):
         f = self._fs.GetObject(self._path)
-        return dt.datetime.fromtimestamp(f.st_mtime)
+        return arrow.fromtimestamp(f.st_mtime).replace(tzinfo='local')
 
     @property
-    def is_available(self):
-        return True
+    def trashed(self):
+        return False
 
     @property
     def is_folder(self):

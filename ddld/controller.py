@@ -239,7 +239,7 @@ class DownloadController(object):
 
     # in bytes
     async def _get_node_size(self, node):
-        if not node.is_available:
+        if node.trashed:
             return 0
 
         if not node.is_folder:
@@ -281,7 +281,7 @@ class DownloadController(object):
         if not node or not local_path:
             return False
 
-        if not node.is_available:
+        if node.trashed:
             return False
 
         try:
@@ -314,7 +314,7 @@ class DownloadController(object):
         return rv
 
     async def _download_glue(self, node, local_path, need_mtime):
-        if not node.is_available:
+        if node.trashed:
             return False
 
         full_path = local_path / node.name
@@ -489,7 +489,7 @@ class SearchEngine(object):
         try:
             nodes = await self._drive.find_nodes_by_regex(pattern)
             nodes = {_.id_: self._drive.get_path(_)
-                     for _ in nodes if _.is_available}
+                     for _ in nodes if not _.trashed}
             nodes = await async_dict(nodes)
             self._cache[pattern] = nodes
         except Exception as e:
@@ -510,7 +510,7 @@ class SearchEngine(object):
 
 
 def preserve_mtime_by_node(full_path, node):
-    mtime = node.modified.timestamp()
+    mtime = node.modified.to('local').timestamp
     return update_mtime(full_path, mtime)
 
 
