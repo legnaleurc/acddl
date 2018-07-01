@@ -23,9 +23,7 @@ class NodesHandler(aw.View):
 
         nodes = [{'id': k, 'name': v} for k, v in nodes.items()]
         nodes = sorted(nodes, key=lambda _: _['name'])
-        nodes = json.dumps(nodes)
-        nodes = nodes + '\n'
-        return aw.Response(text=nodes)
+        return json_response(nodes)
 
     async def delete(self):
         id_ = self.request.match_info['id']
@@ -46,9 +44,7 @@ class CacheHandler(aw.View):
 
         controller = self.request.app['controller']
         result = await controller.compare(nodes)
-        result = json.dumps(result)
-        result = result + '\n'
-        return aw.Response(text=result)
+        return json_response(result)
 
     async def post(self):
         controller = self.request.app['controller']
@@ -76,9 +72,7 @@ class LogHandler(aw.View):
 
     async def get(self):
         log_queue = self.request.app['log_queue']
-        # iDontCare
-        result = json.dumps(log_queue.get_recent())
-        return aw.Response(text=result)
+        return json_response(log_queue.get_recent())
 
 
 class LogSocketHandler(object):
@@ -112,3 +106,9 @@ class LogSocketHandler(object):
         wss = set(self._app['ws'])
         for ws in wss:
             await ws.close(code=aiohttp.WSCloseCode.GOING_AWAY)
+
+
+def json_response(data):
+    data = json.dumps(data)
+    data = data + '\n'
+    return aw.Response(text=data, content_type='application/json')
