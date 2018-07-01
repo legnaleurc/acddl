@@ -11,7 +11,6 @@ import re
 import shutil
 import time
 
-import async_exit_stack as aes
 import wcpan.drive.google as wdg
 import wcpan.worker as ww
 from wcpan.logger import ERROR, WARNING, INFO, EXCEPTION, DEBUG
@@ -30,7 +29,7 @@ class Context(object):
         self._raii = None
 
     async def __aenter__(self):
-        async with aes.AsyncExitStack() as stack:
+        async with cl.AsyncExitStack() as stack:
             await stack.enter_async_context(self._drive)
             await stack.enter_async_context(self._dl)
             self._raii = stack.pop_all()
@@ -69,7 +68,7 @@ class RootController(object):
         self._raii = None
 
     async def __aenter__(self):
-        async with aes.AsyncExitStack() as stack:
+        async with cl.AsyncExitStack() as stack:
             await stack.enter_async_context(self._context)
             self._raii = stack.pop_all()
         return self

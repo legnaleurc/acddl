@@ -1,6 +1,5 @@
 aiohttp >= 3
 aiohttp-jinja2
-async-exit-stack
 wcpan.drive.google >= 2
 wcpan.logger
 wcpan.worker >= 2
