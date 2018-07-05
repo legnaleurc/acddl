@@ -130,37 +130,37 @@ class DownloadController(object):
 
     def __init__(self, context):
         self._context = context
-        self._queue = ww.AsyncQueue(1)
         self._loop = asyncio.get_event_loop()
         self._last_recycle = 0
         self._pending_size = 0
+        self._queue = None
         self._pool = None
+        self._raii = None
 
     async def __aenter__(self):
-        self._pool = cf.ProcessPoolExecutor()
+        async with cl.AsyncExitStack() as stack:
+            self._queue = await stack.enter_async_context(ww.AsyncQueue(1))
+            self._pool = stack.enter_context(cf.ProcessPoolExecutor())
+            self._raii = stack.pop_all()
         return self
 
-    async def __aexit__(self, exc_type, exc, tb):
-        self._pool.shutdown()
-        await self._queue.stop()
+    async def __aexit__(self, type_, exc, tb):
+        await self._raii.aclose()
+        self._raii = None
         self._pool = None
+        self._queue = None
 
     def download(self, node):
-        self._ensure_alive()
         task = self._make_high_download_task(node)
         self._queue.post(task)
 
     def multiple_download(self, *remote_paths):
-        self._ensure_alive()
         self.abort()
         task = ft.partial(self._download_from, *remote_paths)
         self._queue.post(task)
 
     def abort(self):
         self._queue.flush(lambda _: isinstance(_, LowDownloadTask))
-
-    def _ensure_alive(self):
-        self._queue.start()
 
     async def _download_from(self, *remote_paths):
         await self._context.search_engine.clear_cache()
