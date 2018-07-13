@@ -5,7 +5,6 @@ import datetime as dt
 import functools as ft
 import hashlib
 import os
-import os.path as op
 import pathlib
 import re
 import shutil
@@ -22,30 +21,29 @@ class Context(object):
 
     def __init__(self, root_path):
         self._root = pathlib.Path(root_path)
-        self._auth_path = op.expanduser('~/.cache/wcpan/drive/google')
-        self._dl = DownloadController(self)
-        self._drive = wdg.Drive(self._auth_path)
-        self._search_engine = SearchEngine(self._drive)
+        self._drive = None
+        self._dl = None
+        self._search_engine = None
         self._raii = None
 
     async def __aenter__(self):
         async with cl.AsyncExitStack() as stack:
-            await stack.enter_async_context(self._drive)
-            await stack.enter_async_context(self._dl)
+            self._drive = await stack.enter_async_context(wdg.Drive())
+            self._dl = await stack.enter_async_context(DownloadController(self))
+            self._search_engine = SearchEngine(self._drive)
             self._raii = stack.pop_all()
         return self
 
     async def __aexit__(self, type_, value, traceback):
         await self._raii.aclose()
         self._raii = None
+        self._drive = None
+        self._dl = None
+        self._search_engine = None
 
     @property
     def root(self):
         return self._root
-
-    @property
-    def auth_path(self):
-        return self._auth_path
 
     @property
     def dl(self):
