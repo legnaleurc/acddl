@@ -145,6 +145,7 @@ class DownloadController(object):
         return self
 
     async def __aexit__(self, type_, exc, tb):
+        self._queue.flush()
         await self._raii.aclose()
         self._raii = None
         self._pool = None

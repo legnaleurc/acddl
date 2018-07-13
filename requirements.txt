@@ -3,4 +3,4 @@ aiohttp-jinja2
 arrow
 wcpan.drive.google ~= 3.0.0
 wcpan.logger
-wcpan.worker ~= 3.1.0
+wcpan.worker ~= 4.1.0
