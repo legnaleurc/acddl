@@ -37,6 +37,15 @@ class LogQueue(logging.Handler):
         # the main thread
         self._socket_lock = threading.Lock()
         self._loop = asyncio.get_event_loop()
+        self._pending = []
+
+    async def close_(self):
+        if not self._pending:
+            return
+        for task in self._pending:
+            task.cancel()
+        await asyncio.wait(self._pending)
+        self._pending = []
 
     def emit(self, record):
         log = {
@@ -45,7 +54,9 @@ class LogQueue(logging.Handler):
             'thread': record.threadName,
             'message': record.message,
         }
-        self._loop.create_task(self._push(log))
+        task = self._loop.create_task(self._push(log))
+        self._pending = [_ for _ in self._pending if not _.done()]
+        self._pending.append(task)
 
     def get_recent(self):
         return list(self._queue)

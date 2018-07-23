@@ -103,18 +103,19 @@ class LoggerContext(object):
         self._lsh = api.LogSocketHandler(app)
         self._app = app
         self._loggers = loggers
+        self._lq = util.LogQueue(logging.DEBUG)
 
     async def __aenter__(self):
-        lq = util.LogQueue(logging.DEBUG)
         for logger in self._loggers:
-            logger.addHandler(lq)
+            logger.addHandler(self._lq)
 
-        self._app['log_queue'] = lq
+        self._app['log_queue'] = self._lq
         self._app.router.add_view(r'/api/v1/socket', self._lsh.handle)
 
         return self._lsh
 
     async def __aexit__(self, exc_type, exc, tb):
+        await self._lq.close_()
         await self._lsh.close()
 
 
