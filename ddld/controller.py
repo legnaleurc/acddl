@@ -508,6 +508,48 @@ class SearchEngine(object):
             raise u.SearchFailedError('{0} canceled search'.format(pattern))
 
 
+class FreeSpaceCalculator(object):
+
+    def __init__(self, root_path):
+        self._root = root_path
+
+    def get(self):
+        raise NotImplementedError()
+
+
+class WholeFreeSpaceCalculator(FreeSpaceCalculator):
+
+    def __init__(self, root_path):
+        super(WholeFreeSpaceCalculator, self).__init__(root_path)
+
+    def get(self):
+        s = str(self._root)
+        s = os.statvfs(s)
+        s = s.f_frsize * s.f_bavail
+        return s
+
+
+class FolderFreeSpaceCalculator(FreeSpaceCalculator):
+
+    def __init__(self, root_path, quota):
+        super(FolderFreeSpaceCalculator, self).__init__(root_path)
+        self._quota = quota
+
+    def get(self):
+        total = 0
+        for root, dirs, files in os.walk(self._root):
+            tmp = (op.join(root, _) for _ in files)
+            tmp = (op.getsize(_) for _ in tmp)
+            total += sum(tmp)
+        return self._quota - total
+
+
+def get_free_space_calculator(root_path, quota):
+    if quota is None:
+        return WholeFreeSpaceCalculator(root_path)
+    return FolderFreeSpaceCalculator(root_path, quota)
+
+
 def preserve_mtime_by_node(full_path, node):
     mtime = node.modified.to('local').timestamp
     return update_mtime(full_path, mtime)
