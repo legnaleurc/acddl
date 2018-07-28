@@ -5,6 +5,7 @@ import datetime as dt
 import functools as ft
 import hashlib
 import os
+import os.path as op
 import pathlib
 import re
 import shutil
@@ -21,6 +22,7 @@ class Context(object):
 
     def __init__(self, root_path, quota):
         self._root = pathlib.Path(root_path)
+        self._quota = quota
         self._drive = None
         self._dl = None
         self._search_engine = None
@@ -44,6 +46,10 @@ class Context(object):
     @property
     def root(self):
         return self._root
+
+    @property
+    def quota(self):
+        return self._quota
 
     @property
     def dl(self):
@@ -129,6 +135,8 @@ class DownloadController(object):
     def __init__(self, context):
         self._context = context
         self._loop = asyncio.get_event_loop()
+        self._free_space = get_free_space_calculator(context.root,
+                                                     context.quota)
         self._last_recycle = 0
         self._pending_size = 0
         self._queue = None
@@ -231,8 +239,7 @@ class DownloadController(object):
 
     # in bytes
     def _get_free_space(self):
-        s = os.statvfs(str(self._context.root))
-        s = s.f_frsize * s.f_bavail
+        s = self._free_space.get()
         s = s - self._pending_size
         return s
 
