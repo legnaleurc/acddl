@@ -50,7 +50,8 @@ class Daemon(object):
         setup_static_and_view(app)
         setup_api_path(app)
 
-        async with ControllerContext(app, self._kwargs.root), \
+        async with ControllerContext(app, self._kwargs.root,
+                                     self._kwargs.quota), \
                    LoggerContext(app, self._loggers), \
                    ServerContext(app, self._kwargs.listen):
             INFO('ddld') << 'ready'
@@ -67,9 +68,12 @@ class Daemon(object):
 
 class ControllerContext(object):
 
-    def __init__(self, app, root_path):
+    def __init__(self, app, root_path, quota):
         self._app = app
-        self._ctrl = RootController(root_path)
+        if quota is not None:
+            # GB to byte
+            quota *= 1024 ** 3
+        self._ctrl = RootController(root_path, quota)
 
     async def __aenter__(self):
         await self._ctrl.__aenter__()
@@ -124,6 +128,7 @@ def parse_args(args):
 
     parser.add_argument('-l', '--listen', required=True, type=int)
     parser.add_argument('-r', '--root', required=True, type=str)
+    parser.add_argument('-q', '--quota', type=int)
 
     args = parser.parse_args(args)
 

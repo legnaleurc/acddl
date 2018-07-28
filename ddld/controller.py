@@ -19,7 +19,7 @@ from . import util as u
 
 class Context(object):
 
-    def __init__(self, root_path):
+    def __init__(self, root_path, quota):
         self._root = pathlib.Path(root_path)
         self._drive = None
         self._dl = None
@@ -60,8 +60,8 @@ class Context(object):
 
 class RootController(object):
 
-    def __init__(self, cache_folder):
-        self._context = Context(cache_folder)
+    def __init__(self, cache_folder, quota):
+        self._context = Context(cache_folder, quota)
         self._loop = asyncio.get_event_loop()
         self._raii = None
 
