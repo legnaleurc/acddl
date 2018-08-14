@@ -361,7 +361,7 @@ class DownloadController(object):
                 remote_path = await drive.get_path(node)
                 INFO('ddld') << 'downloading:' << remote_path
                 _ = await wdg.download_to_local(drive, node, local_path)
-                assert _ == full_path, 'incorrect path result'
+                assert _ == str(full_path), 'incorrect path result'
                 local_hash = await self._md5sum(full_path)
             except wdg.DownloadError as e:
                 ERROR('ddld') << 'download failed:' << str(e)
