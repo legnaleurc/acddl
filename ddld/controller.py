@@ -360,10 +360,9 @@ class DownloadController(object):
             try:
                 remote_path = await drive.get_path(node)
                 INFO('ddld') << 'downloading:' << remote_path
-                ok = await drive.download_file(node, local_path)
-                INFO('ddld') << 'checking:' << remote_path
+                _ = await wdg.download_to_local(drive, node, local_path)
+                assert _ == full_path, 'incorrect path result'
                 local_hash = await self._md5sum(full_path)
-                INFO('ddld') << local_hash << remote_path
             except wdg.DownloadError as e:
                 ERROR('ddld') << 'download failed:' << str(e)
             except OSError as e:
@@ -378,6 +377,7 @@ class DownloadController(object):
                     INFO('ddld') << 'md5 mismatch:' << full_path
                     full_path.unlink()
                 else:
+                    INFO('ddld') << 'md5 ok:' << full_path
                     break
 
         return True
